@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="256.004" height="309.5" viewBox="0 0 256.004 309.5">
+  <defs>
+    <linearGradient id="linear-gradient" x1="0.734" y1="0.264" x2="0.185" y2="0.747" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#f90"/>
+      <stop offset="1" stop-color="#c14d00"/>
+    </linearGradient>
+    <filter id="Subtraction_4" x="0" y="0" width="256.004" height="227.002" filterUnits="userSpaceOnUse">
+      <feOffset dy="11" input="SourceAlpha"/>
+      <feGaussianBlur stdDeviation="6.5" result="blur"/>
+      <feFlood flood-opacity="0.161"/>
+      <feComposite operator="in" in2="blur"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+  </defs>
+  <g id="Group_3307" data-name="Group 3307" transform="translate(-75.5 -147.5)">
+    <text id="Antiquesoft_Web_Inquiry" data-name="Antiquesoft
+Web Inquiry" transform="translate(115 408)" fill="#172b4d" font-size="30" font-family="DMSans-Bold, 'DM Sans \31 4pt'" font-weight="700"><tspan x="0" y="0">Antiquesoft</tspan><tspan x="0" y="40">Web Inquiry</tspan></text>
+    <g transform="matrix(1, 0, 0, 1, 75.5, 147.5)" filter="url(#Subtraction_4)">
+      <path id="Subtraction_4-2" data-name="Subtraction 4" d="M15403,6468h-.008l-88.4,0-18.754-37.6-18.754,37.6H15186l108.5-188,108.5,188Z" transform="translate(-15166.5 -6271.5)" fill="url(#linear-gradient)"/>
+    </g>
+  </g>
+</svg>

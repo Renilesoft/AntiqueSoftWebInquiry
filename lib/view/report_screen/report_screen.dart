@@ -1,5 +1,6 @@
 import 'package:antiquewebemquiry/view/home_screen/home_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
 import 'package:antiquewebemquiry/viewmodel/reports_viewmodel.dart';
 
@@ -91,8 +92,8 @@ class ReportsView extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Image.asset(
-                    'assets/report1.png',
+                  SvgPicture.asset(
+                    'assets/report1.svg',
                     height: 200,
                     fit: BoxFit.contain,
                   ),

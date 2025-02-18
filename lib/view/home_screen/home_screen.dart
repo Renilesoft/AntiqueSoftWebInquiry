@@ -2,13 +2,13 @@ import 'package:antiquewebemquiry/view/hamburger.dart';
 import 'package:antiquewebemquiry/view/salesreport.dart';
 import 'package:antiquewebemquiry/viewmodel/home_viewmodel.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../report_screen/report_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  // ignore: use_super_parameters
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -70,6 +70,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
+    // Get screen size for responsive calculations
+    final Size screenSize = MediaQuery.of(context).size;
+    final bool isTablet = screenSize.width > 600;
+
     return ChangeNotifierProvider(
       create: (_) => HomeViewModel(),
       child: Scaffold(
@@ -83,7 +87,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 children: [
                   // App Bar
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: screenSize.width * 0.04,
+                      vertical: screenSize.height * 0.02,
+                    ),
                     color: Colors.white,
                     child: Row(
                       children: [
@@ -146,15 +153,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   Expanded(
                     child: SingleChildScrollView(
                       child: Padding(
-                        padding: const EdgeInsets.only(bottom: 90),
+                        padding: EdgeInsets.only(
+                          bottom: screenSize.height * 0.1,
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const SizedBox(height: 30),
+                            SizedBox(height: screenSize.height * 0.03),
                             
                             // Welcome Section
                             Padding(
-                              padding: const EdgeInsets.only(left: 20),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: screenSize.width * 0.05,
+                              ),
                               child: Row(
                                 children: [
                                   const Column(
@@ -179,45 +190,49 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                     ],
                                   ),
                                   const Spacer(),
-                                  Padding(
-                                    padding: const EdgeInsets.only(right: 20),
-                                    child: Image.asset(
-                                      'assets/welcome.png',
-                                      height: 92.8,
-                                    ),
+                                  SvgPicture.asset(
+                                    'assets/welcome.svg',
+                                    height: screenSize.height * 0.12,
                                   ),
                                 ],
                               ),
                             ),
 
-                            const SizedBox(height: 24),
+                            SizedBox(height: screenSize.height * 0.03),
 
                             // Filter Buttons
                             Padding(
-                              padding: const EdgeInsets.only(left: 20),
-                              child: Row(
-                                children: [
-                                  _buildFilterButton('Daily'),
-                                  const SizedBox(width: 12),
-                                  _buildFilterButton('Monthly'),
-                                  const SizedBox(width: 12),
-                                  _buildFilterButton('Yearly'),
-                                ],
+                              padding: EdgeInsets.symmetric(
+                                horizontal: screenSize.width * 0.05,
+                              ),
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  double buttonWidth = (constraints.maxWidth - (2 * 12)) / 3;
+                                  return Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      _buildFilterButton('Daily', buttonWidth),
+                                      const SizedBox(width: 12),
+                                      _buildFilterButton('Monthly', buttonWidth),
+                                      const SizedBox(width: 12),
+                                      _buildFilterButton('Yearly', buttonWidth),
+                                    ],
+                                  );
+                                },
                               ),
                             ),
 
-                            const SizedBox(height: 22),
+                            SizedBox(height: screenSize.height * 0.03),
 
                             // View Report Button
                             Center(
                               child: SizedBox(
-                                width: 147,
-                                height: 43,
+                                width: isTablet ? screenSize.width * 0.4: 147,
+                                height: screenSize.height * 0.06,
                                 child: ElevatedButton(
                                   onPressed: _toggleReport,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFFFF6B00),
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(30),
                                     ),
@@ -234,36 +249,42 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               ),
                             ),
 
-                            const SizedBox(height: 24),
+                            SizedBox(height: screenSize.height * 0.03),
 
                             // Statistics Cards
                             Padding(
-                              padding: const EdgeInsets.only(left: 20, right: 20),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: screenSize.width * 0.05,
+                              ),
                               child: Row(
                                 children: [
                                   Expanded(
                                     child: _buildStatCard(
                                       'Total Items Sold',
-                                      statistics[selectedFilter]!['totalItems']!
+                                      statistics[selectedFilter]!['totalItems']!,
+                                      screenSize,
                                     )
                                   ),
-                                  const SizedBox(width: 16),
+                                  SizedBox(width: screenSize.width * 0.04),
                                   Expanded(
                                     child: _buildStatCard(
                                       'Total Sales Amount',
-                                      statistics[selectedFilter]!['totalSales']!
+                                      statistics[selectedFilter]!['totalSales']!,
+                                      screenSize,
                                     )
                                   ),
                                 ],
                               ),
                             ),
 
-                            const SizedBox(height: 24),
+                            SizedBox(height: screenSize.height * 0.03),
 
                             // Chart Section
                             Padding(
-                              padding: const EdgeInsets.only(left: 20, right: 20),
-                              child: _buildChartSection(),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: screenSize.width * 0.05,
+                              ),
+                              child: _buildChartSection(screenSize),
                             ),
                           ],
                         ),
@@ -272,7 +293,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
 
                   // Bottom Navigation
-                  _buildBottomNavBar(),
+                  _buildBottomNavBar(screenSize),
                 ],
               ),
               
@@ -294,7 +315,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         child: Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(20),
+                            ),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.1),
@@ -325,8 +348,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  // Rest of the widget methods remain the same
-  Widget _buildFilterButton(String text) {
+  Widget _buildFilterButton(String text, double width) {
     bool isSelected = selectedFilter == text;
     return GestureDetector(
       onTap: () {
@@ -335,9 +357,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         });
       },
       child: Container(
-        width: 110,
-        height: 40,
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+        width: width,
+        height:42.5,
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFFFF8500) : Colors.grey,
           borderRadius: BorderRadius.circular(1),
@@ -356,10 +377,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildStatCard(String title, String value) {
+  Widget _buildStatCard(String title, String value, Size screenSize) {
     return Container(
-      height: 118,
-      padding: const EdgeInsets.all(16),
+      height: screenSize.height * 0.15,
+      padding: EdgeInsets.all(screenSize.width * 0.04),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -374,16 +395,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               color: Color(0xFF11AB86),
             ),
           ),
-          const SizedBox(height: 20),
+          const Spacer(),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 value,
-                style: const TextStyle(
-                  fontSize: 21,
+                style: TextStyle(
+                  fontSize: screenSize.width > 600 ? 24 : 21,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF2D3142),
+                  color: const Color(0xFF2D3142),
                 ),
               ),
               Container(
@@ -394,8 +415,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
                 child: Image.asset(
                   'assets/trending.png',
-                  width: 25,
-                  height: 25,
+                  width: screenSize.width * 0.06,
+                  height: screenSize.width * 0.06,
                 ),
               ),
             ],
@@ -405,7 +426,109 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildChartSection() {
+  Widget _buildChartSection(Size screenSize) {
+    // Chart configuration remains the same
+    // Just update the container sizing to be responsive
+    return Container(
+      padding: EdgeInsets.all(screenSize.width * 0.04),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'OVERVIEW',
+            style: TextStyle(
+              fontSize: 12,
+              color: Color(0xFF9A9A9A),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '$selectedFilter Sales',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFFFF8500),
+            ),
+          ),
+          SizedBox(height: screenSize.height * 0.02),
+          SizedBox(
+            height: screenSize.height * 0.4,
+            child: _buildChart(screenSize),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomNavBar(Size screenSize) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        vertical: screenSize.height * 0.02,
+        horizontal: screenSize.width * 0.04,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(30),
+          topRight: Radius.circular(30),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 8,
+            offset: Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _buildNavItem('assets/home.png', 'Home', true, screenSize),
+          _buildNavItem('assets/report.png', 'Reports', false, screenSize),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavItem(String iconPath, String label, bool isSelected, Size screenSize) {
+    double iconSize = screenSize.width > 600 ? 48 : 40;
+    
+    return GestureDetector(
+      onTap: () {
+        if (label == 'Reports') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ReportsPage()),
+          );
+        }
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Image.asset(
+            iconPath,
+            width: iconSize,
+            height: iconSize,
+          ),
+          SizedBox(height: screenSize.height * 0.01),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: screenSize.width > 600 ? 14 : 12,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFFFF8500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChart(Size screenSize) {
     final Map<String, Map<String, dynamic>> chartConfigs = {
       'Daily': {
         'labels': ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
@@ -455,15 +578,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
     var currentConfig = chartConfigs[selectedFilter]!;
     
+    // Calculate responsive chart width
     double chartWidth = selectedFilter == 'Yearly' 
-        ? MediaQuery.of(context).size.width * 3.5
-        : MediaQuery.of(context).size.width - 32;
+        ? screenSize.width * (screenSize.width > 600 ? 2.5 : 3.5)
+        : screenSize.width - (screenSize.width * 0.08);
 
     Widget chartWidget = SizedBox(
       width: chartWidth,
-      height: 350,
+      height: screenSize.height * 0.35,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(0, 12, 12, 12),
+        padding: EdgeInsets.fromLTRB(0, screenSize.height * 0.015, screenSize.width * 0.03, screenSize.height * 0.015),
         child: LineChart(
           LineChartData(
             gridData: FlGridData(
@@ -487,14 +611,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               leftTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
-                  reservedSize: 60,
+                  reservedSize: screenSize.width * 0.15,
                   getTitlesWidget: (value, meta) {
                     return Padding(
-                      padding: const EdgeInsets.only(right: 8),
+                      padding: EdgeInsets.only(right: screenSize.width * 0.02),
                       child: Text(
                         value.toInt().toString(),
-                        style: const TextStyle(
-                          fontSize: 11,
+                        style: TextStyle(
+                          fontSize: screenSize.width > 600 ? 13 : 11,
                           color: Colors.black,
                         ),
                         textAlign: TextAlign.right,
@@ -507,17 +631,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               bottomTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
-                  reservedSize: 35,
+                  reservedSize: screenSize.height * 0.045,
                   getTitlesWidget: (value, meta) {
                     if (value.toInt() >= currentConfig['labels'].length) {
                       return const SizedBox.shrink();
                     }
                     return Padding(
-                      padding: const EdgeInsets.only(top: 8),
+                      padding: EdgeInsets.only(top: screenSize.height * 0.01),
                       child: Text(
                         currentConfig['labels'][value.toInt()],
-                        style: const TextStyle(
-                          fontSize: 14,
+                        style: TextStyle(
+                          fontSize: screenSize.width > 600 ? 16 : 14,
                           color: Colors.black,
                           fontWeight: FontWeight.bold,
                         ),
@@ -543,12 +667,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 spots: currentConfig['spots'],
                 isCurved: true,
                 color: const Color(0xFF00BFA6),
-                barWidth: 3,
+                barWidth: screenSize.width * 0.008,
                 dotData: FlDotData(
                   show: true,
                   getDotPainter: (spot, percent, barData, index) {
                     return FlDotCirclePainter(
-                      radius: 6,
+                      radius: screenSize.width * 0.015,
                       color: Colors.white,
                       strokeWidth: 3,
                       strokeColor: const Color(0xFF00BFA6),
@@ -573,7 +697,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   return touchedSpots.map((LineBarSpot touchedSpot) {
                     return LineTooltipItem(
                       '${currentConfig['labels'][touchedSpot.x.toInt()]}\n${touchedSpot.y.toInt()}',
-                      const TextStyle(color: Colors.white, fontSize: 12),
+                      TextStyle(
+                        color: Colors.white,
+                        fontSize: screenSize.width > 600 ? 14 : 12,
+                      ),
                     );
                   }).toList();
                 },
@@ -584,104 +711,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ),
     );
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'OVERVIEW',
-            style: TextStyle(
-              fontSize: 12,
-              color: Color(0xFF9A9A9A),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '$selectedFilter Sales',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFFFF8500),
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 500,
-            child: selectedFilter == 'Yearly'
-                ? SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: chartWidget,
-                  )
-                : chartWidget,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomNavBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 8,
-            offset: Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          _buildNavItem('assets/home.png', 'Home', true),
-          _buildNavItem('assets/report.png', 'Reports', false),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavItem(String iconPath, String label, bool isSelected) {
-    return GestureDetector(
-      onTap: () {
-        if (label == 'Reports') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const ReportsPage()),
-          );
-        }
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Image.asset(
-            iconPath,
-            width: 40,
-            height: 40,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFFFF8500),
-            ),
-          ),
-        ],
-      ),
-    );
+    return selectedFilter == 'Yearly'
+        ? SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: chartWidget,
+          )
+        : chartWidget;
   }
 }
-
-
