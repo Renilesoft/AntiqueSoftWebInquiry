@@ -468,8 +468,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget _buildBottomNavBar(Size screenSize) {
     return Container(
       padding: EdgeInsets.symmetric(
-        vertical: screenSize.height * 0.02,
-        horizontal: screenSize.width * 0.04,
+        vertical: screenSize.height * 0.01,
+        horizontal: screenSize.width * 0.03,
       ),
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -496,7 +496,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildNavItem(String iconPath, String label, bool isSelected, Size screenSize) {
-    double iconSize = screenSize.width > 600 ? 48 : 40;
+    double iconSize = screenSize.width > 600 ? 40 : 40;
     
     return GestureDetector(
       onTap: () {
@@ -515,12 +515,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             width: iconSize,
             height: iconSize,
           ),
-          SizedBox(height: screenSize.height * 0.01),
+          SizedBox(height: screenSize.height * 0.004),
           Text(
             label,
             style: TextStyle(
               fontSize: screenSize.width > 600 ? 14 : 12,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.normal,
               color: const Color(0xFFFF8500),
             ),
           ),

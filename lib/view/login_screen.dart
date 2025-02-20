@@ -93,7 +93,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                     opacity: _logoFadeAnimation,
                     child: SvgPicture.asset(
                       'assets/logo.svg',
-                      height: 200 * scaleFactor,
+                      height: 150 * scaleFactor,
                       fit: BoxFit.contain,
                     ),
                   ),
