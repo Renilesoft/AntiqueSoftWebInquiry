@@ -19,12 +19,19 @@ class _SalesReportState extends State<SalesReport> {
   DateTime? startDate;
   DateTime? endDate;
   final DateFormat dateFormat = DateFormat('MM/dd/yyyy');
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     startDate = DateTime(2025, 1, 1);
     endDate = DateTime(2025, 12, 31);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _selectDate(BuildContext context, bool isStartDate) async {
@@ -48,6 +55,12 @@ class _SalesReportState extends State<SalesReport> {
 
   @override
   Widget build(BuildContext context) {
+    // Get the screen width
+    double screenWidth = MediaQuery.of(context).size.width;
+    
+    // Determine if we're on a tablet/desktop
+    bool isTabletOrDesktop = screenWidth > 768;
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -64,6 +77,7 @@ class _SalesReportState extends State<SalesReport> {
               style: TextStyle(
                 color: Color(0xFF172B4D),
                 fontWeight: FontWeight.w600,
+                fontSize: isTabletOrDesktop ? 24 : 20,
                 fontFamily: "DM Sans"
               ),
             ),
@@ -71,7 +85,7 @@ class _SalesReportState extends State<SalesReport> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.close, color: Colors.grey),
+            icon: Icon(Icons.close, color: Colors.grey, size: isTabletOrDesktop ? 28 : 24),
             onPressed: widget.onClose,
           ),
         ],
@@ -80,7 +94,7 @@ class _SalesReportState extends State<SalesReport> {
         children: [
           // Date Picker Section
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(isTabletOrDesktop ? 24 : 16),
             color: Colors.white,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -89,7 +103,7 @@ class _SalesReportState extends State<SalesReport> {
                 Row(
                   children: [
                     Expanded(child: _buildDatePicker(true)),
-                    const SizedBox(width: 16),
+                    SizedBox(width: isTabletOrDesktop ? 24 : 16),
                     Expanded(child: _buildDatePicker(false)),
                   ],
                 ),
@@ -101,16 +115,29 @@ class _SalesReportState extends State<SalesReport> {
           
           // Sales List
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(8),
-              itemCount: _salesData.length,
-              itemBuilder: (context, index) => _buildSalesItem(_salesData[index]),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return Container(
+                  width: isTabletOrDesktop 
+                    ? constraints.maxWidth * 0.8 // 80% of screen width for tablet/desktop
+                    : constraints.maxWidth,
+                  margin: EdgeInsets.symmetric(
+                    horizontal: isTabletOrDesktop ? constraints.maxWidth * 0.1 : 0
+                  ),
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    padding: EdgeInsets.all(isTabletOrDesktop ? 16 : 8),
+                    itemCount: _salesData.length,
+                    itemBuilder: (context, index) => _buildSalesItem(_salesData[index], isTabletOrDesktop),
+                  ),
+                );
+              },
             ),
           ),
           
           // Total Section
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(isTabletOrDesktop ? 24 : 16),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
@@ -124,17 +151,12 @@ class _SalesReportState extends State<SalesReport> {
             ),
             child: Column(
               children: [
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                  ],
-                ),
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildTotalItem('Total Items', '234', Colors.orange),
-                    _buildTotalItem('Total Sales', '\$47,892', Color(0xFF00A81C)),
+                    _buildTotalItem('Total Items', '234', Colors.orange, isTabletOrDesktop),
+                    _buildTotalItem('Total Sales', '\$47,892', Color(0xFF00A81C), isTabletOrDesktop),
                   ],
                 ),
               ],
@@ -146,10 +168,15 @@ class _SalesReportState extends State<SalesReport> {
   }
 
   Widget _buildDatePicker(bool isStartDate) {
+    bool isTabletOrDesktop = MediaQuery.of(context).size.width > 768;
+    
     return InkWell(
       onTap: () => _selectDate(context, isStartDate),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: EdgeInsets.symmetric(
+          horizontal: isTabletOrDesktop ? 16 : 12,
+          vertical: isTabletOrDesktop ? 12 : 8
+        ),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(30),
@@ -160,16 +187,19 @@ class _SalesReportState extends State<SalesReport> {
           children: [
             Row(
               children: [
-                Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
-                const SizedBox(width: 8),
+                Icon(
+                  Icons.calendar_today,
+                  size: isTabletOrDesktop ? 20 : 16,
+                  color: Colors.grey[600]
+                ),
+                SizedBox(width: isTabletOrDesktop ? 12 : 8),
                 Text(
                   dateFormat.format(isStartDate ? startDate! : endDate!),
-                  style: const TextStyle(
-                    fontSize: 13,
+                  style: TextStyle(
+                    fontSize: isTabletOrDesktop ? 15 : 13,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(width: 8),
               ],
             ),
           ],
@@ -178,15 +208,15 @@ class _SalesReportState extends State<SalesReport> {
     );
   }
 
-  Widget _buildSalesItem(Map<String, String> data) {
+  Widget _buildSalesItem(Map<String, String> data, bool isTabletOrDesktop) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      height: 60,
+      height: isTabletOrDesktop ? 80 : 60,
       child: Row(
         children: [
           // Date Container (Yellow)
           Container(
-            width: 85,
+            width: isTabletOrDesktop ? 120 : 85,
             decoration: const BoxDecoration(
               color: Color(0xFFFFD685),
               borderRadius: BorderRadius.only(
@@ -194,7 +224,9 @@ class _SalesReportState extends State<SalesReport> {
                 bottomLeft: Radius.circular(4),
               ),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            padding: EdgeInsets.symmetric(
+              horizontal: isTabletOrDesktop ? 16 : 8
+            ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -202,7 +234,7 @@ class _SalesReportState extends State<SalesReport> {
                 Text(
                   data['date']!,
                   style: TextStyle(
-                    fontSize: 11.9,
+                    fontSize: isTabletOrDesktop ? 14 : 11.9,
                     color: Colors.grey[800],
                     fontWeight: FontWeight.w500,
                   ),
@@ -221,28 +253,30 @@ class _SalesReportState extends State<SalesReport> {
                 ),
               ),
               child: Padding(
-                padding: const EdgeInsets.only(left: 12, right: 12),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTabletOrDesktop ? 24 : 12
+                ),
                 child: Row(
                   children: [
                     // Description
-                    SizedBox(
-                      width: 80,
+                    Expanded(
+                      flex: isTabletOrDesktop ? 3 : 2,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text(
+                          Text(
                             'Description',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: isTabletOrDesktop ? 13 : 11,
                               color: Colors.black,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: isTabletOrDesktop ? 6 : 4),
                           Text(
                             data['description']!,
-                            style: const TextStyle(
-                              fontSize: 14,
+                            style: TextStyle(
+                              fontSize: isTabletOrDesktop ? 16 : 14,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -250,24 +284,24 @@ class _SalesReportState extends State<SalesReport> {
                       ),
                     ),
                     // Quantity
-                    SizedBox(
-                      width: 60,
+                    Expanded(
+                      flex: 2,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text(
+                          Text(
                             'Quantity',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: isTabletOrDesktop ? 13 : 11,
                               color: Colors.black,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: isTabletOrDesktop ? 6 : 4),
                           Text(
                             data['quantity']!,
-                            style: const TextStyle(
-                              fontSize: 14,
+                            style: TextStyle(
+                              fontSize: isTabletOrDesktop ? 16 : 14,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -275,24 +309,24 @@ class _SalesReportState extends State<SalesReport> {
                       ),
                     ),
                     // Price
-                    SizedBox(
-                      width: 60,
+                    Expanded(
+                      flex: 2,
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,  // Changed to end
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text(
+                          Text(
                             'Price',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: isTabletOrDesktop ? 13 : 11,
                               color: Colors.black,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: isTabletOrDesktop ? 6 : 4),
                           Text(
                             data['price']!,
-                            style: const TextStyle(
-                              fontSize: 14,
+                            style: TextStyle(
+                              fontSize: isTabletOrDesktop ? 16 : 14,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF00A81C),
                             ),
@@ -302,25 +336,23 @@ class _SalesReportState extends State<SalesReport> {
                     ),
                     // Net Price
                     Expanded(
+                      flex: 2,
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,  // Changed to end
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                        Align(
-                        alignment: Alignment.centerRight,
-                         child:const Text(
+                          Text(
                             'Net Price',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: isTabletOrDesktop ? 13 : 11,
                               color: Colors.black,
                             ),
                           ),
-                        ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: isTabletOrDesktop ? 6 : 4),
                           Text(
                             data['netPrice']!,
-                            style: const TextStyle(
-                              fontSize: 14,
+                            style: TextStyle(
+                              fontSize: isTabletOrDesktop ? 16 : 14,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF00A81C),
                             ),
@@ -338,21 +370,21 @@ class _SalesReportState extends State<SalesReport> {
     );
   }
 
-  Widget _buildTotalItem(String label, String value, Color valueColor) {
+  Widget _buildTotalItem(String label, String value, Color valueColor, bool isTabletOrDesktop) {
     return Column(
       children: [
         Text(
           label,
           style: TextStyle(
-            fontSize: 13,
+            fontSize: isTabletOrDesktop ? 15 : 13,
             color: Colors.black,
           ),
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: isTabletOrDesktop ? 6 : 4),
         Text(
           value,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: isTabletOrDesktop ? 20 : 16,
             fontWeight: FontWeight.w600,
             color: valueColor,
           ),
