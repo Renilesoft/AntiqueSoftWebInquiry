@@ -70,143 +70,155 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     final loginViewModel = context.watch<LoginViewModel>();
-    final screenWidth = MediaQuery.of(context).size.width;
+    final screenSize = MediaQuery.of(context).size;
     
-    // Calculate scale factor to maintain phone proportions
-    double scaleFactor = screenWidth / 400; // 390 is base iPhone width
+    // Improved adaptive scaling
+    double scaleFactor = screenSize.width / 450; // Reduced base width for more compact UI
+    
+    // Apply constraints to prevent UI from being too large on larger screens
+    if (scaleFactor > 0.9) scaleFactor = 0.9;
     
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Center(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24.0 * scaleFactor),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                SizedBox(height: 80 * scaleFactor),
-                // Animated Logo Section
-                SlideTransition(
-                  position: _logoSlideAnimation,
-                  child: FadeTransition(
-                    opacity: _logoFadeAnimation,
-                    child: SvgPicture.asset(
-                      'assets/logo.svg',
-                      height: 150 * scaleFactor,
-                      fit: BoxFit.contain,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.0 * scaleFactor),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(height: 40 * scaleFactor), // Reduced top spacing
+                  // Animated Logo Section
+                  SlideTransition(
+                    position: _logoSlideAnimation,
+                    child: FadeTransition(
+                      opacity: _logoFadeAnimation,
+                      child: SvgPicture.asset(
+                        'assets/logo.svg',
+                        height: 120 * scaleFactor, // Reduced logo size
+                        fit: BoxFit.contain,
+                      ),
                     ),
                   ),
-                ),
-                SizedBox(height: 40 * scaleFactor),
-                // Animated Form Section
-                SlideTransition(
-                  position: _formSlideAnimation,
-                  child: FadeTransition(
-                    opacity: _formFadeAnimation,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        _buildTextField(
-                          labelText: 'Store Code',
-                          iconPath: 'assets/store.png',
-                          controller: loginViewModel.storeCodeController,
-                          scaleFactor: scaleFactor,
+                  SizedBox(height: 30 * scaleFactor), // Reduced spacing
+                  // Animated Form Section
+                  SlideTransition(
+                    position: _formSlideAnimation,
+                    child: FadeTransition(
+                      opacity: _formFadeAnimation,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: 340 * scaleFactor, // Constrain maximum width
                         ),
-                        SizedBox(height: 23* scaleFactor),
-                        _buildTextField(
-                          labelText: 'User Id',
-                          iconPath: 'assets/user.png',
-                          controller: loginViewModel.usernameController,
-                          scaleFactor: scaleFactor,
-                          
-                        ),
-                        SizedBox(height: 23 * scaleFactor),
-                        _buildPasswordField(
-                          controller: loginViewModel.passwordController,
-                          isPasswordVisible: loginViewModel.isPasswordVisible,
-                          onToggleVisibility: loginViewModel.togglePasswordVisibility,
-                          scaleFactor: scaleFactor,
-                        ),
-                        SizedBox(height: 8 * scaleFactor),
-                        SizedBox(
-                          width: 366 * scaleFactor,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  Transform.scale(
-                                    scale: scaleFactor,
-                                    child: Checkbox(
-                                      value: loginViewModel.rememberMe,
-                                      onChanged: (_) => loginViewModel.toggleRememberMe(),
-                                      activeColor: const Color(0xFF172B4D),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            _buildTextField(
+                              labelText: 'Store Code',
+                              iconPath: 'assets/store.png',
+                              controller: loginViewModel.storeCodeController,
+                              scaleFactor: scaleFactor,
+                            ),
+                            SizedBox(height: 16 * scaleFactor), // Reduced spacing
+                            _buildTextField(
+                              labelText: 'User Id',
+                              iconPath: 'assets/user.png',
+                              controller: loginViewModel.usernameController,
+                              scaleFactor: scaleFactor,
+                            ),
+                            SizedBox(height: 16 * scaleFactor), // Reduced spacing
+                            _buildPasswordField(
+                              controller: loginViewModel.passwordController,
+                              isPasswordVisible: loginViewModel.isPasswordVisible,
+                              onToggleVisibility: loginViewModel.togglePasswordVisibility,
+                              scaleFactor: scaleFactor,
+                            ),
+                            SizedBox(height: 6 * scaleFactor), // Reduced spacing
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Transform.scale(
+                                      scale: 0.9 * scaleFactor, // Slightly smaller checkbox
+                                      child: Checkbox(
+                                        value: loginViewModel.rememberMe,
+                                        onChanged: (_) => loginViewModel.toggleRememberMe(),
+                                        activeColor: const Color(0xFF172B4D),
+                                        visualDensity: VisualDensity.compact,
+                                      ),
                                     ),
+                                    Text(
+                                      'Remember me',
+                                      style: TextStyle(
+                                        decoration: TextDecoration.underline,
+                                        fontSize: 12 * scaleFactor, // Smaller font
+                                        color: const Color(0xFF172B4D),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                TextButton(
+                                  onPressed: () {},
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero, // Remove padding
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                   ),
-                                  Text(
-                                    'Remember me',
+                                  child: Text(
+                                    'Forgot password',
                                     style: TextStyle(
                                       decoration: TextDecoration.underline,
-                                      fontSize: 14 * scaleFactor,
+                                      fontSize: 12 * scaleFactor, // Smaller font
                                       color: const Color(0xFF172B4D),
                                     ),
                                   ),
-                                ],
-                              ),
-                              TextButton(
-                                onPressed: () {},
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 20 * scaleFactor),
+                            SizedBox(
+                              width: 140 * scaleFactor, // Smaller button
+                              height: 48 * scaleFactor, // Shorter button
+                              child: ElevatedButton(
+                                onPressed: () async {
+                                  bool success = await loginViewModel.login(context);
+                                  if (!success) {
+                                    // ignore: use_build_context_synchronously
+                                    _showErrorDialog(context);
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFFF8500),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(24 * scaleFactor),
+                                  ),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 16 * scaleFactor,
+                                    vertical: 8 * scaleFactor,
+                                  ),
+                                ),
                                 child: Text(
-                                  'Forgot password',
+                                  'Login',
                                   style: TextStyle(
-                                    decoration: TextDecoration.underline,
-                                    fontSize: 14 * scaleFactor,
-                                    color: const Color(0xFF172B4D),
+                                    color: Colors.white,
+                                    fontSize: 15 * scaleFactor,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                        SizedBox(height: 16 * scaleFactor),
-                        SizedBox(
-                          width: 173 * scaleFactor,
-                          height: 64 * scaleFactor,
-                          child: ElevatedButton(
-                            onPressed: () async {
-                              bool success = await loginViewModel.login(context);
-                              if (!success) {
-                                // ignore: use_build_context_synchronously
-                                _showErrorDialog(context);
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFFF8500),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30 * scaleFactor),
-                              ),
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 20 * scaleFactor,
-                                vertical: 10 * scaleFactor,
-                              ),
                             ),
-                            child: Text(
-                              'Login',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16 * scaleFactor,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-                SizedBox(height: 20 * scaleFactor),
-              ],
+                  SizedBox(height: 20 * scaleFactor),
+                ],
+              ),
             ),
           ),
         ),
@@ -233,56 +245,58 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     required double scaleFactor,
   }) {
     return SizedBox(
-      width: 366 * scaleFactor,
-      height: 60 * scaleFactor,
+      width: 340 * scaleFactor, // Reduced width
+      height: 50 * scaleFactor, // Reduced height
       child: TextField(
         controller: controller,
         cursorColor: const Color(0xFF172B4D),
         style: TextStyle(
           color: const Color(0xFF172B4D),
-          fontSize: 14 * scaleFactor,
+          fontSize: 13 * scaleFactor, // Smaller font
         ),
         decoration: InputDecoration(
           labelText: labelText,
           labelStyle: TextStyle(
             color: const Color(0xFF172B4D),
-            fontSize: 14 * scaleFactor,
+            fontSize: 13 * scaleFactor, // Smaller font
           ),
           floatingLabelStyle: TextStyle(
             color: Colors.grey,
-            fontSize: 14 * scaleFactor,
+            fontSize: 12 * scaleFactor, // Smaller font
           ),
           filled: true,
           fillColor: Colors.white,
+          isDense: true, // More compact
           contentPadding: EdgeInsets.symmetric(
-            horizontal: 16 * scaleFactor,
-            vertical: 12 * scaleFactor,
+            horizontal: 12 * scaleFactor, // Reduced padding
+            vertical: 10 * scaleFactor, // Reduced padding
           ),
           suffixIcon: Padding(
-            padding: EdgeInsets.all(12.0 * scaleFactor), // Reduced padding to accommodate larger icon
+            padding: EdgeInsets.all(8.0 * scaleFactor), // Reduced padding
             child: Image.asset(
               iconPath,
-              width: 18 * scaleFactor,  // Increased from 24 to 32
-              height: 18 * scaleFactor, // Increased from 24 to 32
-              fit: BoxFit.contain,      // Added to ensure proper scaling
+              width: 16 * scaleFactor, // Smaller icon
+              height: 16 * scaleFactor, // Smaller icon
+              fit: BoxFit.contain,
             ),
           ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(5 * scaleFactor),
+            borderRadius: BorderRadius.circular(4 * scaleFactor), // Smaller radius
             borderSide: const BorderSide(color: Colors.grey),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(5 * scaleFactor),
+            borderRadius: BorderRadius.circular(4 * scaleFactor), // Smaller radius
             borderSide: const BorderSide(color: Colors.grey),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(5 * scaleFactor),
-            borderSide: const BorderSide(color: Colors.grey, width: 2),
+            borderRadius: BorderRadius.circular(4 * scaleFactor), // Smaller radius
+            borderSide: const BorderSide(color: Colors.grey, width: 1.5), // Thinner border
           ),
         ),
       ),
     );
   }
+
   Widget _buildPasswordField({
     required TextEditingController controller,
     required bool isPasswordVisible,
@@ -290,35 +304,37 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     required double scaleFactor,
   }) {
     return SizedBox(
-      width: 366 * scaleFactor,
-      height: 60 * scaleFactor,
+      width: 340 * scaleFactor, // Reduced width
+      height: 50 * scaleFactor, // Reduced height
       child: TextField(
         controller: controller,
         obscureText: !isPasswordVisible,
         cursorColor: const Color(0xFF172B4D),
         style: TextStyle(
           color: const Color(0xFF172B4D),
-          fontSize: 14 * scaleFactor,
+          fontSize: 13 * scaleFactor, // Smaller font
         ),
         decoration: InputDecoration(
           labelText: 'Password',
           labelStyle: TextStyle(
             color: const Color(0xFF172B4D),
-            fontSize: 14 * scaleFactor,
+            fontSize: 13 * scaleFactor, // Smaller font
           ),
           floatingLabelStyle: TextStyle(
             color: Colors.grey,
-            fontSize: 14 * scaleFactor,
+            fontSize: 12 * scaleFactor, // Smaller font
           ),
           filled: true,
           fillColor: Colors.white,
+          isDense: true, // More compact
           contentPadding: EdgeInsets.symmetric(
-            horizontal: 16 * scaleFactor,
-            vertical: 12 * scaleFactor,
+            horizontal: 12 * scaleFactor, // Reduced padding
+            vertical: 10 * scaleFactor, // Reduced padding
           ),
           suffixIcon: IconButton(
-            iconSize: 24 * scaleFactor,
-            padding: EdgeInsets.all(12 * scaleFactor),
+            iconSize: 20 * scaleFactor, // Smaller icon
+            padding: EdgeInsets.all(8 * scaleFactor), // Reduced padding
+            constraints: BoxConstraints(), // Remove constraints
             icon: Icon(
               isPasswordVisible ? Icons.visibility : Icons.visibility_off,
               color: const Color(0xFFFF8500),
@@ -326,16 +342,16 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             onPressed: onToggleVisibility,
           ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(5 * scaleFactor),
+            borderRadius: BorderRadius.circular(4 * scaleFactor), // Smaller radius
             borderSide: const BorderSide(color: Colors.grey),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(5 * scaleFactor),
+            borderRadius: BorderRadius.circular(4 * scaleFactor), // Smaller radius
             borderSide: const BorderSide(color: Colors.grey),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(5 * scaleFactor),
-            borderSide: const BorderSide(color: Colors.grey, width: 2),
+            borderRadius: BorderRadius.circular(4 * scaleFactor), // Smaller radius
+            borderSide: const BorderSide(color: Colors.grey, width: 1.5), // Thinner border
           ),
         ),
       ),
