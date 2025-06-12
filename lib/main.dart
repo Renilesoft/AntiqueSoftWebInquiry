@@ -1,55 +1,16 @@
-import 'package:antiquewebemquiry/notification.dart';
-import 'package:antiquewebemquiry/view/login_screen.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'viewmodel/login_viewmodel.dart';
 
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
-  print('📦 Background message received: ${message.messageId}');
-  NotificationService().showNotification(message);
-}
-
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
 
-  // Register background message handler
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-  // Set up push notifications (including iOS permissions)
-  await _setupPushNotifications();
+  // 🔒 Temporarily disabled Firebase to isolate the issue
+  // await Firebase.initializeApp();
+  // FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  // await _setupPushNotifications();
 
   runApp(const AntiqueSoftApp());
-}
-
-Future<void> _setupPushNotifications() async {
-  FirebaseMessaging messaging = FirebaseMessaging.instance;
-
-  // Request permission for iOS
-  NotificationSettings settings = await messaging.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
-
-  print('🔐 iOS permission status: ${settings.authorizationStatus}');
-
-  // Initialize local notification service
-  NotificationService notificationService = NotificationService();
-  await notificationService.init();
-
-  // Get device FCM token
-  String? token = await messaging.getToken();
-  print('📱 FCM Token: $token');
-
-  // Foreground listener
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    print('📲 Foreground message: ${message.notification?.title}');
-    notificationService.showNotification(message);
-  });
 }
 
 class AntiqueSoftApp extends StatelessWidget {
@@ -75,7 +36,24 @@ class AntiqueSoftApp extends StatelessWidget {
             displaySmall: TextStyle(fontFamily: 'DM Sans', fontWeight: FontWeight.bold, fontStyle: FontStyle.italic),
           ),
         ),
-        home: const LoginScreen(),
+        home: const TestScreen(), // ✅ Replaced LoginScreen
+      ),
+    );
+  }
+}
+
+class TestScreen extends StatelessWidget {
+  const TestScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    print("✅ TestScreen is building");
+    return Scaffold(
+      body: Center(
+        child: Text(
+          "✅ App Boot Success - UI is working",
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }
