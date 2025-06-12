@@ -45,5 +45,23 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
+	<!-- ✅ ADD THESE FOR FIREBASE NOTIFICATIONS -->
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>This app requires camera access for profile and report photos.</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>This identifier is used to deliver notifications and improve the experience.</string>
 </dict>
 </plist>
