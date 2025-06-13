@@ -108,7 +108,6 @@ class _AntiqueSoftAppState extends State<AntiqueSoftApp> {
         print('⚠️ Provisional notification permissions granted');
       } else {
         print('❌ Notification permissions denied');
-        return; // Don't proceed if permissions denied
       }
 
       // Initialize local notification service
@@ -116,15 +115,13 @@ class _AntiqueSoftAppState extends State<AntiqueSoftApp> {
       await notificationService.init();
       print('📲 Local notification service initialized');
 
-      // Get FCM token with retry mechanism for iOS
-      await _getFCMTokenWithRetry(messaging);
-
-      // Listen for token refresh (important for iOS)
-      messaging.onTokenRefresh.listen((String token) {
-        print('📱 FCM Token refreshed: $token');
-        // Save the new token to your backend here
-        _saveFCMTokenToBackend(token);
-      });
+      // Get FCM token
+      try {
+        String? token = await messaging.getToken();
+        print('📱 FCM Token: ${token ?? 'No token received'}');
+      } catch (e) {
+        print('⚠️ Failed to get FCM token: $e');
+      }
 
       // Listen for foreground messages
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -145,72 +142,6 @@ class _AntiqueSoftAppState extends State<AntiqueSoftApp> {
     } catch (e) {
       print('❌ Push notification setup failed: $e');
       // Don't throw here, just log the error
-    }
-  }
-
-  Future<void> _getFCMTokenWithRetry(FirebaseMessaging messaging) async {
-    int maxRetries = 5;
-    int retryDelay = 2; // seconds
-
-    for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        print('🔄 Attempting to get FCM token (attempt $attempt/$maxRetries)');
-        
-        // Add a small delay before each attempt (except first)
-        if (attempt > 1) {
-          await Future.delayed(Duration(seconds: retryDelay));
-          retryDelay *= 2; // Exponential backoff
-        }
-
-        String? token = await messaging.getToken().timeout(
-          Duration(seconds: 10),
-          onTimeout: () {
-            throw Exception('FCM token request timed out');
-          },
-        );
-
-        if (token != null && token.isNotEmpty) {
-          print('📱 FCM Token retrieved successfully: $token');
-          
-          // Save token to your backend
-          await _saveFCMTokenToBackend(token);
-          return; // Success, exit retry loop
-        } else {
-          print('⚠️ FCM token is null or empty (attempt $attempt)');
-        }
-      } catch (e) {
-        print('❌ Failed to get FCM token (attempt $attempt): $e');
-        
-        if (attempt == maxRetries) {
-          print('❌ Failed to get FCM token after $maxRetries attempts');
-          // You might want to show a user-friendly message here
-        }
-      }
-    }
-  }
-
-  Future<void> _saveFCMTokenToBackend(String token) async {
-    try {
-      // TODO: Replace this with your actual backend API call
-      print('💾 Saving FCM token to backend: $token');
-      
-      // Example API call (uncomment and modify as needed):
-      /*
-      final response = await http.post(
-        Uri.parse('https://your-api.com/save-fcm-token'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'fcm_token': token, 'platform': 'ios'}),
-      );
-      
-      if (response.statusCode == 200) {
-        print('✅ FCM token saved to backend successfully');
-      } else {
-        print('❌ Failed to save FCM token to backend: ${response.statusCode}');
-      }
-      */
-      
-    } catch (e) {
-      print('❌ Error saving FCM token to backend: $e');
     }
   }
 
