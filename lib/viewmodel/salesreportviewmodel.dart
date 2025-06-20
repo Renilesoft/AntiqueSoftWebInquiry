@@ -1,4 +1,5 @@
-import 'package:antiquewebemquiry/model/salesreport_model.dart';
+import 'package:antiquewebemquiry/model/salesitem.dart';
+
 import 'package:flutter/foundation.dart';
 // ignore: implementation_imports
 import 'package:flutter/src/material/date.dart';

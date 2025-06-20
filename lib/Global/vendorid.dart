@@ -1,31 +1,40 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Vendor {
-  static String vendorid = '';
+  static int? vendorid;
 
-  static Future<void> loadvendorid() async {
+  /// Load the vendor ID from SharedPreferences into the static variable
+  static Future<void> loadVendorId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    vendorid = prefs.getString('vendorid') ?? '';
+    vendorid = prefs.getInt('vendorid');
   }
 
-  static Future<void> savevendorid(String id) async {
+  /// Save the vendor ID into SharedPreferences and static variable
+  static Future<void> saveVendorId(int id) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('vendorid', id);
+    await prefs.setInt('vendorid', id);
     vendorid = id;
   }
 
-  static Future<String?> getvendorid() async {
-    if (vendorid.isEmpty) {
-      await loadvendorid();
+  /// Get the vendor ID, loading from SharedPreferences if needed
+  static Future<int?> getVendorId() async {
+    if (vendorid == null) {
+      await loadVendorId();
     }
-    return vendorid.isNotEmpty ? vendorid : null;
+    return vendorid;
   }
 
-  static Future<void> clearvendorid() async {
+  /// Clear the vendor ID from both memory and SharedPreferences
+  static Future<void> clearVendorId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.remove('vendorid');
-    vendorid = '';
+    vendorid = null;
   }
 
- 
+  /// Use this method if you want to safely re-save the vendor ID
+  static Future<void> resaveVendorId() async {
+    if (vendorid != null) {
+      await saveVendorId(vendorid!); // Safe because we check for null
+    }
+  }
 }

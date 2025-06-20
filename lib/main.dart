@@ -31,7 +31,7 @@ Future<void> main() async {
 
   await Location.loadlocation();
   await Username.loadusername();
-  await Vendor.loadvendorid();
+  await Vendor.loadVendorId();
   
   runApp(const AntiqueSoftApp());
 }

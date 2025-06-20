@@ -1,91 +1,151 @@
+import 'dart:convert';
+import 'package:antiquewebemquiry/Constants/baseurl.dart';
+import 'package:antiquewebemquiry/Global/location.dart';
+import 'package:antiquewebemquiry/Global/vendorid.dart';
+import 'package:antiquewebemquiry/Global/yearlytotalquantity.dart';
+import 'package:antiquewebemquiry/Global/yearlytotalsales.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
+// Dummy classes to represent your actual implementation
 
 class YearlySalesReportPage extends StatefulWidget {
   const YearlySalesReportPage({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
   _YearlySalesReportPageState createState() => _YearlySalesReportPageState();
 }
 
 class _YearlySalesReportPageState extends State<YearlySalesReportPage> {
-  // List of years to be displayed
-  final List<String> years = ['2020', '2021', '2022', '2023', '2024', '2025'];
-  
-  // List of months
+  final List<String> years = [
+    for (int year = 2010; year <= 2025; year++) year.toString()
+  ];
+
   final List<String> months = [
-    'January', 'February', 'March', 'April', 'May', 'June', 
+    'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  // Sample sales data (you'd typically fetch this from a backend or database)
-  final List<Map<String, dynamic>> salesData = [
-    {'month': 'January', 'quantity': 875, 'sales': 50893.00},
-    {'month': 'February', 'quantity': 920, 'sales': 53240.50},
-    {'month': 'March', 'quantity': 790, 'sales': 45670.25},
-    {'month': 'April', 'quantity': 1050, 'sales': 61200.75},
-    {'month': 'May', 'quantity': 830, 'sales': 48350.60},
-    {'month': 'June', 'quantity': 965, 'sales': 56180.90},
-    {'month': 'July', 'quantity': 1100, 'sales': 64020.30},
-    {'month': 'August', 'quantity': 885, 'sales': 51570.45},
-    {'month': 'September', 'quantity': 940, 'sales': 54820.10},
-    {'month': 'October', 'quantity': 1020, 'sales': 59460.80},
-    {'month': 'November', 'quantity': 780, 'sales': 45360.20},
-    {'month': 'December', 'quantity': 1200, 'sales': 69900.50},
-  ];
-  
-  // Currently selected year
-  String selectedYear = 'Year';
+  List<Map<String, dynamic>> salesData = [];
+  String selectedYear = '2025';
+
+  @override
+  void initState() {
+    super.initState();
+    fetchYearlySales(selectedYear);
+  }
+
+  Future<void> fetchYearlySales(String year) async {
+  try {
+    final uri = Uri.parse(
+      '$baseurl/Home/YearlySales?location=${Location.location}&vendorId=${Vendor.vendorid}&year=$year',
+    );
+    final response = await http.get(uri);
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> jsonResponse = json.decode(response.body);
+      final List<dynamic> apiMonthlySales = jsonResponse['monthlySales'];
+
+      Map<String, Map<String, dynamic>> apiDataMap = {
+        for (var item in apiMonthlySales)
+          item['month']: {
+            'quantity': item['totalQuantity'],
+            'sales': (item['totalSales'] as num).toDouble(),
+          }
+      };
+
+      salesData = months.map((month) {
+        return {
+          'month': month,
+          'quantity': apiDataMap[month]?['quantity'] ?? 0,
+          'sales': apiDataMap[month]?['sales'] ?? 0.0,
+        };
+      }).toList();
+
+      /// ✅ Save totals to SharedPreferences for global use
+      final totals = _calculateTotals();
+      await TotalQuantity.save(totals['quantity'] as int);
+      await TotalSales.save(totals['sales'] as double);
+
+      setState(() {});
+    } else {
+      showError("Failed to fetch yearly sales data: ${response.statusCode}");
+    }
+  } catch (e) {
+    showError("Failed to fetch yearly sales data:\n$e");
+  }
+}
+
+
+  void showError(String message) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Error'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _showYearPicker(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (BuildContext context) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text(
-                'Select Year',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+        return SizedBox(
+          height: 400,
+          child: Column(
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  'Select Year',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ),
-            ),
-            ...years.map((year) => ListTile(
-              title: Text(
-                year,
-                style: TextStyle(
-                  color: selectedYear == year ? Colors.pink : Colors.black,
+              Expanded(
+                child: ListView.builder(
+                  itemCount: years.length,
+                  itemBuilder: (context, index) {
+                    final year = years[index];
+                    return ListTile(
+                      title: Text(
+                        year,
+                        style: TextStyle(
+                          color: selectedYear == year ? Colors.pink : Colors.black,
+                        ),
+                      ),
+                      onTap: () async {
+                        setState(() {
+                          selectedYear = year;
+                        });
+                        Navigator.pop(context);
+                        await fetchYearlySales(year);
+                      },
+                    );
+                  },
                 ),
               ),
-              onTap: () {
-                setState(() {
-                  selectedYear = year;
-                });
-                Navigator.pop(context);
-              },
-            )),
-          ],
+            ],
+          ),
         );
       },
     );
   }
 
-  // Calculate total sales and quantity
   Map<String, num> _calculateTotals() {
-    int totalQuantity = salesData.fold(0, (int sum, item) => sum + (item['quantity'] as int));
-    double totalSales = salesData.fold(0.0, (double sum, item) => sum + (item['sales'] as double));
-    
-    return {
-      'quantity': totalQuantity,
-      'sales': totalSales
-    };
+    int totalQuantity = salesData.fold(0, (sum, item) => sum + (item['quantity'] as int));
+    double totalSales = salesData.fold(0.0, (sum, item) => sum + (item['sales'] as double));
+    return {'quantity': totalQuantity, 'sales': totalSales};
   }
 
   @override
@@ -97,7 +157,7 @@ class _YearlySalesReportPageState extends State<YearlySalesReportPage> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        automaticallyImplyLeading: false, // Remove default back button
+        automaticallyImplyLeading: false,
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
@@ -112,7 +172,7 @@ class _YearlySalesReportPageState extends State<YearlySalesReportPage> {
           style: TextStyle(
             color: Color(0xFF172B4D),
             fontWeight: FontWeight.bold,
-            fontFamily: 'DM Sans'
+            fontFamily: 'DM Sans',
           ),
         ),
         centerTitle: true,
@@ -121,7 +181,6 @@ class _YearlySalesReportPageState extends State<YearlySalesReportPage> {
         builder: (context, constraints) {
           return Column(
             children: [
-              // Year Selector
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
                 child: Container(
@@ -140,40 +199,32 @@ class _YearlySalesReportPageState extends State<YearlySalesReportPage> {
                     ],
                   ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.calendar_today, color: Colors.black),
-                          const SizedBox(width: 10),
-                          GestureDetector(
-                            onTap: () => _showYearPicker(context),
-                            child: Text(
-                              selectedYear,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                            ),
+                      const Icon(Icons.calendar_today, color: Colors.black),
+                      const SizedBox(width: 10),
+                      GestureDetector(
+                        onTap: () => _showYearPicker(context),
+                        child: Text(
+                          selectedYear,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
                           ),
-                        ],
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
-              
-              // ListView
               Expanded(
                 child: ListView.builder(
-                  padding: EdgeInsets.zero,
                   itemCount: salesData.length,
                   itemBuilder: (context, index) {
-                    final monthData = salesData[index];
+                    final item = salesData[index];
                     return Container(
-                      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
-                      height: 70, // Fixed height for consistency
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      height: 70,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(15),
                         color: Colors.white,
@@ -188,7 +239,6 @@ class _YearlySalesReportPageState extends State<YearlySalesReportPage> {
                       ),
                       child: Row(
                         children: [
-                          // Yellow background for Month column
                           Expanded(
                             flex: 1,
                             child: Container(
@@ -202,16 +252,14 @@ class _YearlySalesReportPageState extends State<YearlySalesReportPage> {
                               alignment: Alignment.centerLeft,
                               padding: const EdgeInsets.symmetric(horizontal: 16),
                               child: Text(
-                                monthData['month'],
+                                item['month'],
                                 style: const TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 14,
                                   fontWeight: FontWeight.bold,
+                                  fontSize: 14,
                                 ),
                               ),
                             ),
                           ),
-                          // White background for other columns
                           Expanded(
                             flex: 2,
                             child: Padding(
@@ -225,18 +273,13 @@ class _YearlySalesReportPageState extends State<YearlySalesReportPage> {
                                       children: [
                                         const Text(
                                           'Quantity Sold',
-                                          style: TextStyle(
-                                            color: Colors.black,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.normal,
-                                          ),
+                                          style: TextStyle(fontSize: 10),
                                         ),
                                         Text(
-                                          '${monthData['quantity']}',
+                                          '${item['quantity']}',
                                           style: const TextStyle(
-                                            color: Colors.black,
-                                            fontSize: 18,
                                             fontWeight: FontWeight.bold,
+                                            fontSize: 18,
                                           ),
                                         ),
                                       ],
@@ -249,18 +292,14 @@ class _YearlySalesReportPageState extends State<YearlySalesReportPage> {
                                       children: [
                                         const Text(
                                           'Total Sales',
-                                          style: TextStyle(
-                                            color: Colors.black,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.normal,
-                                          ),
+                                          style: TextStyle(fontSize: 10),
                                         ),
                                         Text(
-                                          '\$${monthData['sales'].toStringAsFixed(2)}',
+                                          '\$${(item['sales'] as double).toStringAsFixed(2)}',
                                           style: const TextStyle(
                                             color: Colors.green,
-                                            fontSize: 18,
                                             fontWeight: FontWeight.bold,
+                                            fontSize: 18,
                                           ),
                                         ),
                                       ],
@@ -276,8 +315,6 @@ class _YearlySalesReportPageState extends State<YearlySalesReportPage> {
                   },
                 ),
               ),
-              
-              // Total Summary - Modified to match the UI image
               Container(
                 color: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -287,20 +324,12 @@ class _YearlySalesReportPageState extends State<YearlySalesReportPage> {
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         Text(
-                      '  Total Quantity',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          '  Total Quantity',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                         ),
                         Text(
                           '  Grand Total',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                         ),
                       ],
                     ),
@@ -317,7 +346,7 @@ class _YearlySalesReportPageState extends State<YearlySalesReportPage> {
                           ),
                         ),
                         Text(
-                          '         \$${totals['sales']!.toStringAsFixed(2)}',
+                          '         \$${(totals['sales'] as double).toStringAsFixed(2)}',
                           style: const TextStyle(
                             color: Colors.green,
                             fontSize: 18,

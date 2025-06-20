@@ -1,5 +1,5 @@
 import 'package:antiquewebemquiry/view/home_screen/home_screen.dart';
-import 'package:antiquewebemquiry/viewmodel/salesreportviewmodel.dart';
+import 'package:antiquewebemquiry/viewmodel/SalesReportViewModel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';

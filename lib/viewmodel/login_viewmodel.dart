@@ -111,7 +111,7 @@ Future<bool> login(BuildContext context) async {
         // Load into static global variables
         await Location.loadlocation();
         await Username.loadusername();
-        await Vendor.loadvendorid();
+        await Vendor.loadVendorId();
 
         // Store locally if rememberMe is true
         if (_rememberMe) {

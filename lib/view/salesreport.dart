@@ -1,14 +1,79 @@
+import 'package:antiquewebemquiry/Constants/baseurl.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+// Model classes for API response
+class SalesData {
+  final DateTime date;
+  final String description;
+  final int quantity;
+  final double price;
+  final double netPrice;
+
+  SalesData({
+    required this.date,
+    required this.description,
+    required this.quantity,
+    required this.price,
+    required this.netPrice,
+  });
+
+  factory SalesData.fromJson(Map<String, dynamic> json) {
+    return SalesData(
+      date: DateTime.parse(json['date']),
+      description: json['description'] ?? '',
+      quantity: json['quantity'] ?? 0,
+      price: (json['price'] ?? 0).toDouble(),
+      netPrice: (json['netPrice'] ?? 0).toDouble(),
+    );
+  }
+}
+
+class SalesResponse {
+  final int? vendorId;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final int totalItems;
+  final double totalSales;
+  final List<SalesData> salesData;
+
+  SalesResponse({
+    this.vendorId,
+    this.startDate,
+    this.endDate,
+    required this.totalItems,
+    required this.totalSales,
+    required this.salesData,
+  });
+
+  factory SalesResponse.fromJson(Map<String, dynamic> json) {
+    return SalesResponse(
+      vendorId: json['vendorId'],
+      startDate: json['startDate'] != null ? DateTime.parse(json['startDate']) : null,
+      endDate: json['endDate'] != null ? DateTime.parse(json['endDate']) : null,
+      totalItems: json['totalItems'] ?? 0,
+      totalSales: (json['totalSales'] ?? 0).toDouble(),
+      salesData: (json['salesData'] as List<dynamic>?)
+          ?.map((item) => SalesData.fromJson(item))
+          .toList() ?? [],
+    );
+  }
+}
 
 class SalesReport extends StatefulWidget {
   final String filterType;
   final VoidCallback onClose;
+  final String location;
+  final int vendorId;
 
   const SalesReport({
     super.key,
     required this.filterType,
     required this.onClose,
+    required this.location,
+    required this.vendorId,
   });
 
   @override
@@ -19,40 +84,100 @@ class _SalesReportState extends State<SalesReport> {
   DateTime? startDate;
   DateTime? endDate;
   final DateFormat dateFormat = DateFormat('MM/dd/yyyy');
+  
+  // API related variables
+  SalesResponse? salesResponse;
+  bool isLoading = false;
+  String? errorMessage;
+  
+  // API configuration
+  static const String baseUrl = 'http://192.168.10.26/Antiquesoft/Home';
 
   @override
   void initState() {
     super.initState();
     DateTime now = DateTime.now();
 
-     switch (widget.filterType) {
+    switch (widget.filterType) {
       case 'Daily':
-        // Set both start and end date to today's date
-        // But allow flexibility to change later
         startDate = now;
         endDate = now;
         break;
       
       case 'Monthly':
-        // Set both start and end date to the current month
         startDate = DateTime(now.year, now.month, 1);
         endDate = DateTime(now.year, now.month, now.day);
         break;
       
       default:
-        // Default behavior: set wide date range
         startDate = DateTime(2020, 1, 1);
         endDate = DateTime(2026, 12, 31);
     }
+    
+    // Load initial data
+    _fetchSalesData();
   }
-  
- 
 
-  
-   Future<void> _selectDate(BuildContext context, bool isStartDate) async {
+  Future<void> _fetchSalesData() async {
+    if (startDate == null || endDate == null) return;
+    
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
+    try {
+      final response = await _callSalesAPI();
+      setState(() {
+        salesResponse = response;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        errorMessage = e.toString();
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<SalesResponse> _callSalesAPI() async {
+    String url;
+    
+    if (widget.filterType == 'Monthly') {
+      // Use Monthly Sales API endpoint
+      final String startMonth = DateFormat('yyyy-MM').format(startDate!);
+      final String endMonth = DateFormat('yyyy-MM').format(endDate!);
+      
+      url = '$baseurl/Home/MonthlySales?location=${widget.location}&vendorId=${widget.vendorId}&startMonth=$startMonth&endMonth=$endMonth';
+    } else {
+      // Use Daily Sales API endpoint for Daily and other filter types
+      final String formattedStartDate = DateFormat('yyyy-MM-dd').format(startDate!);
+      final String formattedEndDate = DateFormat('yyyy-MM-dd').format(endDate!);
+      
+      url = '$baseurl/Home/DailySales?location=${widget.location}&vendorId=${widget.vendorId}&startDate=$formattedStartDate&endDate=$formattedEndDate';
+    }
+    
+    print('API Call URL: $url'); // Debug log
+    
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> jsonData = json.decode(response.body);
+      print('API Response: $jsonData'); // Debug log
+      return SalesResponse.fromJson(jsonData);
+    } else {
+      throw Exception('Failed to load sales data: ${response.statusCode} - ${response.body}');
+    }
+  }
+
+  Future<void> _selectDate(BuildContext context, bool isStartDate) async {
     switch (widget.filterType) {
       case 'Daily':
-        // More flexible Daily picker
         final DateTime? picked = await showDatePicker(
           context: context,
           initialDate: isStartDate ? startDate ?? DateTime.now() : endDate ?? DateTime.now(),
@@ -81,23 +206,21 @@ class _SalesReportState extends State<SalesReport> {
           setState(() {
             if (isStartDate) {
               startDate = picked;
-              // Ensure end date is not before start date
               if (endDate != null && picked.isAfter(endDate!)) {
                 endDate = picked;
               }
             } else {
               endDate = picked;
-              // Ensure start date is not after end date
               if (startDate != null && picked.isBefore(startDate!)) {
                 startDate = picked;
               }
             }
           });
+          _fetchSalesData();
         }
         break;
       
       case 'Monthly':
-        // Monthly picker remains the same
         final DateTime? picked = await showDatePicker(
           context: context,
           initialDate: isStartDate ? startDate ?? DateTime.now() : endDate ?? DateTime.now(),
@@ -125,24 +248,28 @@ class _SalesReportState extends State<SalesReport> {
         if (picked != null) {
           setState(() {
             if (isStartDate) {
-              startDate = picked;
-              // Ensure end date is not before start date
-              if (endDate != null && picked.isAfter(endDate!)) {
-                endDate = picked;
+              startDate = DateTime(picked.year, picked.month, 1);
+              // For monthly, if end date is in the same month or before, update it
+              if (endDate != null && 
+                  (endDate!.year < picked.year || 
+                   (endDate!.year == picked.year && endDate!.month < picked.month))) {
+                endDate = DateTime(picked.year, picked.month, DateTime(picked.year, picked.month + 1, 0).day);
               }
             } else {
-              endDate = picked;
-              // Ensure start date is not after end date
-              if (startDate != null && picked.isBefore(startDate!)) {
-                startDate = picked;
+              endDate = DateTime(picked.year, picked.month, DateTime(picked.year, picked.month + 1, 0).day);
+              // For monthly, if start date is in the same month or after, update it
+              if (startDate != null && 
+                  (startDate!.year > picked.year || 
+                   (startDate!.year == picked.year && startDate!.month > picked.month))) {
+                startDate = DateTime(picked.year, picked.month, 1);
               }
             }
           });
+          _fetchSalesData();
         }
         break;
       
       default:
-        // Default date picker for other filter types
         final DateTime? picked = await showDatePicker(
           context: context,
           initialDate: isStartDate ? startDate ?? DateTime.now() : endDate ?? DateTime.now(),
@@ -175,14 +302,13 @@ class _SalesReportState extends State<SalesReport> {
               endDate = picked;
             }
           });
+          _fetchSalesData();
         }
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
-    // Get screen size information
     final double screenWidth = MediaQuery.of(context).size.width;
     final double screenHeight = MediaQuery.of(context).size.height;
     final bool isTablet = screenWidth > 600;
@@ -220,16 +346,14 @@ class _SalesReportState extends State<SalesReport> {
           ),
         ],
       ),
-      // Use the full screen width and height for the body
       body: _buildResponsiveLayout(screenWidth, screenHeight, isTablet, isLargeTablet),
     );
   }
 
   Widget _buildResponsiveLayout(double screenWidth, double screenHeight, bool isTablet, bool isLargeTablet) {
-    // Use the full width of the screen
     return SizedBox(
       width: screenWidth,
-      height: screenHeight - kToolbarHeight, // Account for AppBar height
+      height: screenHeight - kToolbarHeight,
       child: Column(
         children: [
           // Date Picker Section
@@ -254,45 +378,146 @@ class _SalesReportState extends State<SalesReport> {
           
           const SizedBox(height: 8),
           
-          // Sales List - This will take the remaining screen space
+          // Sales List with loading/error handling
           Expanded(
             child: SizedBox(
               width: screenWidth,
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                itemCount: _salesData.length,
-                itemBuilder: (context, index) => _buildSalesItem(_salesData[index], screenWidth),
-              ),
+              child: _buildSalesContent(screenWidth),
             ),
           ),
           
           // Total Section
-          Container(
-            width: screenWidth,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
-                  spreadRadius: 1,
-                  blurRadius: 1,
-                  offset: const Offset(0, -1),
-                ),
-              ],
+          _buildTotalSection(screenWidth),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSalesContent(double screenWidth) {
+    if (isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
+        ),
+      );
+    }
+    
+    if (errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 48,
+              color: Colors.red[300],
             ),
-            child: Column(
-              children: [
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildTotalItem('Total Items', '137', Colors.orange),
-                    _buildTotalItem('Total Sales', '\$22,479', const Color(0xFF00A81C)),
-                  ],
-                ),
-              ],
+            const SizedBox(height: 16),
+            Text(
+              'Error loading data',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[800],
+              ),
             ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                errorMessage!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _fetchSalesData,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    if (salesResponse?.salesData.isEmpty ?? true) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.inbox_outlined,
+              size: 48,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No sales data found',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Try selecting a different date range',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[500],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemCount: salesResponse!.salesData.length,
+      itemBuilder: (context, index) => _buildSalesItem(salesResponse!.salesData[index], screenWidth),
+    );
+  }
+
+  Widget _buildTotalSection(double screenWidth) {
+    return Container(
+      width: screenWidth,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 1,
+            offset: const Offset(0, -1),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildTotalItem(
+                'Total Items', 
+                '${salesResponse?.totalItems ?? 0}', 
+                Colors.orange
+              ),
+              _buildTotalItem(
+                'Total Sales', 
+                '\$${salesResponse?.totalSales.toStringAsFixed(2) ?? '0.00'}', 
+                const Color(0xFF00A81C)
+              ),
+            ],
           ),
         ],
       ),
@@ -334,14 +559,9 @@ class _SalesReportState extends State<SalesReport> {
     );
   }
 
-  Widget _buildSalesItem(Map<String, String> data, double screenWidth) {
-    // Responsive column widths based on screen size
+  Widget _buildSalesItem(SalesData data, double screenWidth) {
     final bool isTablet = screenWidth > 600;
-    
-    // Adjust date container width
     final double dateWidth = isTablet ? 100 : 75;
-    
-    // Adjust item height based on screen size
     final double itemHeight = isTablet ? 70 : 60;
     
     return Container(
@@ -365,9 +585,9 @@ class _SalesReportState extends State<SalesReport> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  data['date']!,
+                  dateFormat.format(data.date),
                   style: TextStyle(
-                    fontSize: isTablet ? 11 : 9, // Larger font for tablet
+                    fontSize: isTablet ? 11 : 9,
                     color: Colors.grey[800],
                     fontWeight: FontWeight.w500,
                   ),
@@ -386,7 +606,7 @@ class _SalesReportState extends State<SalesReport> {
                 ),
               ),
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: isTablet ? 16 : 8), // More padding for tablet
+                padding: EdgeInsets.symmetric(horizontal: isTablet ? 16 : 8),
                 child: Row(
                   children: [
                     // Description
@@ -399,7 +619,7 @@ class _SalesReportState extends State<SalesReport> {
                           Text(
                             'Description',
                             style: TextStyle(
-                              fontSize: isTablet ? 12 : 10, // Larger font for tablet
+                              fontSize: isTablet ? 12 : 10,
                               color: Colors.black,
                             ),
                           ),
@@ -407,9 +627,9 @@ class _SalesReportState extends State<SalesReport> {
                           FittedBox(
                             fit: BoxFit.scaleDown,
                             child: Text(
-                              data['description']!,
+                              data.description,
                               style: TextStyle(
-                                fontSize: isTablet ? 15: 13, // Larger font for tablet
+                                fontSize: isTablet ? 15: 13,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -427,7 +647,7 @@ class _SalesReportState extends State<SalesReport> {
                           Text(
                             'Quantity',
                             style: TextStyle(
-                              fontSize: isTablet ? 12 : 10, // Larger font for tablet
+                              fontSize: isTablet ? 12 : 10,
                               color: Colors.black,
                             ),
                           ),
@@ -435,9 +655,9 @@ class _SalesReportState extends State<SalesReport> {
                           FittedBox(
                             fit: BoxFit.scaleDown,
                             child: Text(
-                              data['quantity']!,
+                              '${data.quantity}',
                               style: TextStyle(
-                                fontSize: isTablet ? 15 : 13, // Larger font for tablet
+                                fontSize: isTablet ? 15 : 13,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -455,7 +675,7 @@ class _SalesReportState extends State<SalesReport> {
                           Text(
                             'Price',
                             style: TextStyle(
-                              fontSize: isTablet ? 12 : 10, // Larger font for tablet
+                              fontSize: isTablet ? 12 : 10,
                               color: Colors.black,
                             ),
                           ),
@@ -463,9 +683,9 @@ class _SalesReportState extends State<SalesReport> {
                           FittedBox(
                             fit: BoxFit.scaleDown,
                             child: Text(
-                              data['price']!,
+                              '\$${data.price.toStringAsFixed(2)}',
                               style: TextStyle(
-                                fontSize: isTablet ? 15 : 13, // Larger font for tablet
+                                fontSize: isTablet ? 15 : 13,
                                 fontWeight: FontWeight.bold,
                                 color: const Color(0xFF00A81C),
                               ),
@@ -484,7 +704,7 @@ class _SalesReportState extends State<SalesReport> {
                           Text(
                             'Net Price',
                             style: TextStyle(
-                              fontSize: isTablet ? 12 : 10, // Larger font for tablet
+                              fontSize: isTablet ? 12 : 10,
                               color: Colors.black,
                             ),
                           ),
@@ -492,16 +712,16 @@ class _SalesReportState extends State<SalesReport> {
                           FittedBox(
                             fit: BoxFit.scaleDown,
                             child: Text(
-                              data['netPrice']!,
+                              '\$${data.netPrice.toStringAsFixed(2)}',
                               style: TextStyle(
-                                fontSize: isTablet ? 15 : 13, // Larger font for tablet
+                                fontSize: isTablet ? 15 : 13,
                                 fontWeight: FontWeight.bold,
                                 color: const Color(0xFF00A81C),
                               ),
                             ),
                           ),
-                        ],
-                        ),
+                        ]
+                      ),
                     ),
                   ],
                 ),
@@ -514,7 +734,6 @@ class _SalesReportState extends State<SalesReport> {
   }
 
   Widget _buildTotalItem(String label, String value, Color valueColor) {
-    // Get screen information
     final double screenWidth = MediaQuery.of(context).size.width;
     final bool isTablet = screenWidth > 600;
     
@@ -523,7 +742,7 @@ class _SalesReportState extends State<SalesReport> {
         Text(
           label,
           style: TextStyle(
-            fontSize: isTablet ? 15 : 13, // Larger font for tablet
+            fontSize: isTablet ? 15 : 13,
             color: Colors.black,
           ),
         ),
@@ -531,7 +750,7 @@ class _SalesReportState extends State<SalesReport> {
         Text(
           value,
           style: TextStyle(
-            fontSize: isTablet ? 22 : 19, // Larger font for tablet
+            fontSize: isTablet ? 22 : 19,
             fontWeight: FontWeight.w900,
             color: valueColor,
           ),
@@ -539,154 +758,4 @@ class _SalesReportState extends State<SalesReport> {
       ],
     );
   }
-
-  final List<Map<String, String>> _salesData = [
-    {
-      'date': '12/07/2024',
-      'description': 'Glass',
-      'quantity': '12',
-      'price': '\$6.00',
-      'netPrice': '\$72.00',
-    },
-    {
-      'date': '12/07/2024',
-      'description': 'Mug',
-      'quantity': '08',
-      'price': '\$12.50',
-      'netPrice': '\$100.00',
-    },
-    {
-      'date': '12/07/2024',
-      'description': 'Plate',
-      'quantity': '24',
-      'price': '\$8.75',
-      'netPrice': '\$210.00',
-    },
-    {
-      'date': '12/07/2024',
-      'description': 'Bowl',
-      'quantity': '16',
-      'price': '\$9.25',
-      'netPrice': '\$148.00',
-    },
-    {
-      'date': '12/07/2024',
-      'description': 'Cutlery',
-      'quantity': '32',
-      'price': '\$4.50',
-      'netPrice': '\$144.00',
-    },
-    {
-      'date': '12/07/2024',
-      'description': 'Vase',
-      'quantity': '04',
-      'price': '\$42.00',
-      'netPrice': '\$168.00',
-    },
-    {
-      'date': '12/07/2024',
-      'description': 'Teapot',
-      'quantity': '06',
-      'price': '\$35.00',
-      'netPrice': '\$210.00',
-    },
-    {
-      'date': '12/07/2024',
-      'description': 'Chair',
-      'quantity': '10',
-      'price': '\$125.00',
-      'netPrice': '\$250.00',
-    },
-    {
-      'date': '12/07/2024',
-      'description': 'Table',
-      'quantity': '05',
-      'price': '\$349.00',
-      'netPrice': '\$745.00',
-    },
-    {
-      'date': '12/07/2024',
-      'description': 'Lamp',
-      'quantity': '08',
-      'price': '\$89.00',
-      'netPrice': '\$712.00',
-    },
-    {
-      'date': '12/07/2024',
-      'description': 'Sofa',
-      'quantity': '02',
-      'price': '\$99.00',
-      'netPrice': '\$798.00',
-    },
-    {
-      'date': '12/07/2024',
-      'description': 'Cabinet',
-      'quantity': '03',
-      'price': '\$50.00',
-      'netPrice': '\$250.00',
-    },
-    {
-      'date': '12/07/2024',
-      'description': 'Rug',
-      'quantity': '05',
-      'price': '\$99.00',
-      'netPrice': '\$495.00',
-    },
-    {
-      'date': '12/07/2024',
-      'description': 'Mirror',
-      'quantity': '06',
-      'price': '\$75.00',
-      'netPrice': '\$150.00',
-    },
-    {
-      'date': '12/07/2024',
-      'description': 'Bookcase',
-      'quantity': '04',
-      'price': '\$45.00',
-      'netPrice': '\$700.00',
-    },
-    {
-      'date': '12/07/2024',
-      'description': 'Clock',
-      'quantity': '12',
-      'price': '\$45.00',
-      'netPrice': '\$540.00',
-    },
-    {
-      'date': '12/07/2024',
-      'description': 'Planter',
-      'quantity': '15',
-      'price': '\$22.00',
-      'netPrice': '\$330.00',
-    },
-    {
-      'date': '12/07/2024',
-      'description': 'Canvas',
-      'quantity': '08',
-      'price': '\$65.00',
-      'netPrice': '\$520.00',
-    },
-    {
-      'date': '12/07/2024',
-      'description': 'Pillow',
-      'quantity': '20',
-      'price': '\$28.00',
-      'netPrice': '\$560.00',
-    },
-    {
-      'date': '12/07/2024',
-      'description': 'Blanket',
-      'quantity': '12',
-      'price': '\$85.00',
-      'netPrice': '\$120.00',
-    },
-    {
-      'date': '12/07/2024',
-      'description': 'Curtain Hall',
-      'quantity': '08',
-      'price': '\$95.00',
-      'netPrice': '\$760.00',
-    },
-  ];
 }
