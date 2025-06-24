@@ -13,5 +13,15 @@ class TotalSales {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     totalsales = prefs.getDouble('yearly_total_sales') ?? 0.0;
   }
+
+  static double get() {
+    return totalsales;
+  }
+
+  static Future<void> clear() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove('yearly_total_sales');
+    totalsales = 0.0;
+  }
 }
 

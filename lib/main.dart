@@ -1,15 +1,18 @@
+
+import 'package:antiquewebemquiry/Global/sales.dart';
+import 'package:antiquewebemquiry/Global/yearlytotalquantity.dart';
+import 'package:antiquewebemquiry/Global/yearlytotalsales.dart';
 import 'package:antiquewebemquiry/Services/firebase_options.dart';
 import 'package:antiquewebemquiry/Global/location.dart';
 import 'package:antiquewebemquiry/Global/username.dart';
 import 'package:antiquewebemquiry/Global/vendorid.dart';
+import 'package:antiquewebemquiry/view/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:provider/provider.dart';
 import 'dart:io' show Platform;
-
 import 'Services/notification.dart';
-import 'view/login_screen.dart';
 import 'viewmodel/login_viewmodel.dart';
 
 // Background message handler
@@ -32,7 +35,12 @@ Future<void> main() async {
   await Location.loadlocation();
   await Username.loadusername();
   await Vendor.loadVendorId();
-  
+  await TotalSales.load(); // loads saved double into TotalSales.totalsales
+  await TotalQuantity.load();
+  await MonthlyTotalItems.load();
+  await DailyTotalItems.load();
+  await MonthlyTotalSales.load();
+  await DailyTotalSales.load();
   runApp(const AntiqueSoftApp());
 }
 
@@ -257,48 +265,7 @@ class _AntiqueSoftAppState extends State<AntiqueSoftApp> {
         ),
       );
     }
-
-    // Loading state
-    if (!_initialized) {
-      return const MaterialApp(
-        title: 'AntiqueSoft',
-        debugShowCheckedModeBanner: false,
-        home: Scaffold(
-          backgroundColor: Colors.white,
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    Color(0xFF172B4D),
-                  ),
-                ),
-                SizedBox(height: 24),
-                Text(
-                  'Initializing AntiqueSoft...',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF172B4D),
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Please wait while we set up the app',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    // Main app - only shown when Firebase is successfully initialized
+    
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => LoginViewModel()),
@@ -317,7 +284,7 @@ class _AntiqueSoftAppState extends State<AntiqueSoftApp> {
             displaySmall: TextStyle(fontFamily: 'DM Sans', fontWeight: FontWeight.bold, fontStyle: FontStyle.italic),
           ),
         ),
-        home: const LoginScreen(),
+        home: const SplashScreen(),
       ),
     );
   }

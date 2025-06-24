@@ -2,8 +2,6 @@ import 'package:antiquewebemquiry/Constants/baseurl.dart';
 import 'package:antiquewebemquiry/Global/location.dart';
 import 'package:antiquewebemquiry/Global/username.dart';
 import 'package:antiquewebemquiry/Global/vendorid.dart';
-import 'package:antiquewebemquiry/Global/yearlytotalquantity.dart';
-import 'package:antiquewebemquiry/Global/yearlytotalsales.dart';
 import 'package:antiquewebemquiry/view/hamburger.dart';
 import 'package:antiquewebemquiry/view/message.dart';
 // ignore: unused_import
@@ -51,25 +49,30 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   double maxYearlySales = 100000.0;
   int currentYear = 0;
 
+  String marketMessage = 'Loading...';
+  bool isLoadingMarketMessage = true;
+
   
   // API related variables
   String vendorName = 'Loading...'; // Default value while loading
   bool isLoadingVendorName = true;
   
-  final Map<String, Map<String, String>> statistics = {
-  'Daily': {
-    'totalItems': '135',
-    'totalSales': '\$345.97',
-  },
-  'Monthly': {
-    'totalItems': '325',
-    'totalSales': '\$11,985',
-  },
-  'Yearly': {
-    'totalItems': '${TotalQuantity.totalQuantity}',
-    'totalSales': '\$${TotalSales.totalsales.toStringAsFixed(2)}',
-  },
-};
+  Map<String, Map<String, String>> get statistics {
+  return {
+    'Daily': {
+      'totalItems': isLoadingDailyStats ? 'Loading...' : dailyStats['totalItems']!,
+      'totalSales': isLoadingDailyStats ? 'Loading...' : dailyStats['totalSales']!,
+    },
+    'Monthly': {
+      'totalItems': isLoadingMonthlyStats ? 'Loading...' : monthlyStats['totalItems']!,
+      'totalSales': isLoadingMonthlyStats ? 'Loading...' : monthlyStats['totalSales']!,
+    },
+    'Yearly': {
+      'totalItems': isLoadingYearlyStats ? 'Loading...' : yearlyStats['totalItems']!,
+      'totalSales': isLoadingYearlyStats ? 'Loading...' : yearlyStats['totalSales']!,
+    },
+  };
+}
 
   @override
 void initState() {
@@ -86,10 +89,256 @@ void initState() {
   );
 
   _fetchVendorName();
-  _loadYearlyTotals();
   _fetchDailySalesData();
   _fetchMonthlySalesData();
-  _fetchYearlySalesData();// 👈 Load shared prefs
+  _fetchYearlySalesData();
+  _refreshPage();
+  _fetchMarketMessage();
+  _fetchDailySalesStats();
+  _fetchMonthlySalesStats();
+  _fetchYearlyStats();// 👈 Load shared prefs
+  
+}
+
+Map<String, String> dailyStats = {
+  'totalItems': '0',
+  'totalSales': '\$0.00',
+};
+bool isLoadingDailyStats = false;
+
+Map<String, String> monthlyStats = {
+  'totalItems': '0',
+  'totalSales': '\$0.00',
+};
+bool isLoadingMonthlyStats = false;
+
+Map<String, String> yearlyStats = {
+  'totalItems': '0',
+  'totalSales': '\$0.00',
+};
+bool isLoadingYearlyStats = false;
+
+Future<void> _refreshPage() async {
+  // Refresh all data
+  await _fetchVendorName();
+  await _fetchMarketMessage(); 
+  await _fetchDailySalesStats();// Add this line
+  await _fetchDailySalesData();
+  await _fetchMonthlySalesData();
+  await _fetchYearlySalesData();
+  await _fetchMonthlySalesStats();
+  await _fetchYearlyStats();
+  
+  // Update the UI
+  setState(() {});
+}
+
+Future<void> _fetchYearlyStats() async {
+  setState(() {
+    isLoadingYearlyStats = true;
+  });
+
+  try {
+    // Get current year
+    final DateTime now = DateTime.now();
+    final int currentYearParam = now.year;
+    
+    final String url = '$baseurl/Home/YearlySales?location=${Location.location}&vendorId=${Vendor.vendorid}&year=$currentYearParam';
+    
+    print('Yearly Stats API URL: $url'); // Debug print
+    
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    );
+
+    print('Yearly Stats Response Status: ${response.statusCode}'); // Debug print
+    print('Yearly Stats Response Body: ${response.body}'); // Debug print
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
+      
+      setState(() {
+        yearlyStats = {
+          'totalItems': (data['totalQuantitySold'] ?? 0).toString(),
+          'totalSales': '\$${(data['totalSalesAmount'] ?? 0.0).toStringAsFixed(2)}',
+        };
+        isLoadingYearlyStats = false;
+      });
+    } else {
+      setState(() {
+        yearlyStats = {
+          'totalItems': '0',
+          'totalSales': '\$0.00',
+        };
+        isLoadingYearlyStats = false;
+      });
+      _showErrorSnackBar('Failed to load yearly stats: ${response.statusCode}');
+    }
+  } catch (e) {
+    setState(() {
+      yearlyStats = {
+        'totalItems': '0',
+        'totalSales': '\$0.00',
+      };
+      isLoadingYearlyStats = false;
+    });
+    print('Yearly Stats Error: $e'); // Debug print
+    _showErrorSnackBar('Error loading yearly stats: ${e.toString()}');
+  }
+}
+
+Future<void> _fetchDailySalesStats() async {
+  setState(() {
+    isLoadingDailyStats = true;
+  });
+
+  try {
+    // Get current date in the required format
+    final DateTime now = DateTime.now();
+    final String currentDate = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    
+    final String url = '$baseurl/Home/DailySales?location=${Location.location}&vendorId=${Vendor.vendorid}&startDate=${currentDate}T00:00:00&endDate=${currentDate}T23:59:59';
+    
+    print('Daily Sales Stats API URL: $url'); // Debug print
+    
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    );
+
+    print('Daily Sales Stats Response Status: ${response.statusCode}'); // Debug print
+    print('Daily Sales Stats Response Body: ${response.body}'); // Debug print
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
+      
+      setState(() {
+        dailyStats = {
+          'totalItems': (data['totalItems'] ?? 0).toString(),
+          'totalSales': '\$${(data['totalSales'] ?? 0.0).toStringAsFixed(2)}',
+        };
+        isLoadingDailyStats = false;
+      });
+    } else {
+      setState(() {
+        dailyStats = {
+          'totalItems': '0',
+          'totalSales': '\$0.00',
+        };
+        isLoadingDailyStats = false;
+      });
+      _showErrorSnackBar('Failed to load daily sales stats: ${response.statusCode}');
+    }
+  } catch (e) {
+    setState(() {
+      dailyStats = {
+        'totalItems': '0',
+        'totalSales': '\$0.00',
+      };
+      isLoadingDailyStats = false;
+    });
+    print('Daily Sales Stats Error: $e'); // Debug print
+    _showErrorSnackBar('Error loading daily sales stats: ${e.toString()}');
+  }
+}
+
+
+
+Future<void> _fetchMarketMessage() async {
+  try {
+    final String url = '$baseurl/Home/getMarketMessage?location=${Location.location}';
+    
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
+      setState(() {
+        marketMessage = data['marketMessage'] ?? 'No message available';
+        isLoadingMarketMessage = false;
+      });
+    } else {
+      setState(() {
+        marketMessage = 'Failed to load message';
+        isLoadingMarketMessage = false;
+      });
+    }
+  } catch (e) {
+    setState(() {
+      marketMessage = 'Error loading message';
+      isLoadingMarketMessage = false;
+    });
+  }
+}
+
+Future<void> _fetchMonthlySalesStats() async {
+  setState(() {
+    isLoadingMonthlyStats = true;
+  });
+
+  try {
+    // Get current month in the required format (YYYY-MM)
+    final DateTime now = DateTime.now();
+    final String currentMonth = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    
+    final String url = '$baseurl/Home/MonthlySales?location=${Location.location}&vendorId=${Vendor.vendorid}&startMonth=$currentMonth&endMonth=$currentMonth';
+    
+    print('Monthly Sales Stats API URL: $url'); // Debug print
+    
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    );
+
+    print('Monthly Sales Stats Response Status: ${response.statusCode}'); // Debug print
+    print('Monthly Sales Stats Response Body: ${response.body}'); // Debug print
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
+      
+      setState(() {
+        monthlyStats = {
+          'totalItems': (data['totalItems'] ?? 0).toString(),
+          'totalSales': '\$${(data['totalSales'] ?? 0.0).toStringAsFixed(2)}',
+        };
+        isLoadingMonthlyStats = false;
+      });
+    } else {
+      setState(() {
+        monthlyStats = {
+          'totalItems': '0',
+          'totalSales': '\$0.00',
+        };
+        isLoadingMonthlyStats = false;
+      });
+      _showErrorSnackBar('Failed to load monthly sales stats: ${response.statusCode}');
+    }
+  } catch (e) {
+    setState(() {
+      monthlyStats = {
+        'totalItems': '0',
+        'totalSales': '\$0.00',
+      };
+      isLoadingMonthlyStats = false;
+    });
+    print('Monthly Sales Stats Error: $e'); // Debug print
+    _showErrorSnackBar('Error loading monthly sales stats: ${e.toString()}');
+  }
 }
 
 Future<void> _fetchYearlySalesData() async {
@@ -102,7 +351,7 @@ Future<void> _fetchYearlySalesData() async {
     final DateTime now = DateTime.now();
     final int currentYearParam = now.year;
     
-    final String url = '$baseurl/Home/graphSalesYearly?location=${Location.location}&vendorId=${Vendor.vendorid}&year=$currentYearParam';
+    final String url = '$baseurl/Home/YearlySales?location=${Location.location}&vendorId=${Vendor.vendorid}&year=$currentYearParam';
     
     print('Yearly Sales API URL: $url'); // Debug print
     
@@ -347,11 +596,9 @@ Future<void> _fetchMonthlySalesData() async {
   }
 }
 
-Future<void> _loadYearlyTotals() async {
-  await TotalSales.load();       // loads saved double into TotalSales.totalsales
-  await TotalQuantity.load();    // loads saved int into TotalQuantity.totalQuantity
-  setState(() {});               // refresh UI after loading
-}
+
+
+
   @override
   void dispose() {
     _animationController.dispose();
@@ -510,8 +757,8 @@ Future<void> _loadYearlyTotals() async {
                                   onPressed: _navigateToMessagePage,
                                 ),
                                 Positioned(
-                                  right: 8,
-                                  top: 8,
+                                  right: 9,
+                                  top: 11,
                                   child: Container(
                                     padding: const EdgeInsets.all(2),
                                     decoration: BoxDecoration(
@@ -519,16 +766,8 @@ Future<void> _loadYearlyTotals() async {
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     constraints: const BoxConstraints(
-                                      minWidth: 14,
-                                      minHeight: 14,
-                                    ),
-                                    child: const Text(
-                                      '1',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 8,
-                                      ),
-                                      textAlign: TextAlign.center,
+                                      minWidth: 10,
+                                      minHeight: 10,
                                     ),
                                   ),
                                 ),
@@ -580,14 +819,18 @@ Future<void> _loadYearlyTotals() async {
                   ),
 
                   // Welcome Notification - displayed just below the AppBar
-                  if (_showWelcomeNotification)
-                    WelcomeNotification(
-                      message: 'Insert the message information. It would look better as two lines of text.',
-                      onClose: _closeWelcomeNotification,
-                      onOpen: _openWelcomeNotification,
-                    ),
+                if (_showWelcomeNotification)
+                  WelcomeNotification(
+                    message: isLoadingMarketMessage ? 'Loading message...' : marketMessage,
+                    onClose: _closeWelcomeNotification,
+                    onOpen: _openWelcomeNotification,
+                  ),
 
                   Expanded(
+                    child: RefreshIndicator(
+                    onRefresh: _refreshPage,
+                    color: const Color(0xFF00BFA6),
+                    backgroundColor: Colors.white,
                     child: SingleChildScrollView(
                       child: Padding(
                         padding: EdgeInsets.only(
@@ -744,7 +987,8 @@ Future<void> _loadYearlyTotals() async {
                         ),
                       ),
                     ),
-                  ),
+                  )
+                ),
 
                   // Bottom Navigation
                   _buildBottomNavBar(screenSize),
@@ -810,42 +1054,46 @@ Future<void> _loadYearlyTotals() async {
     return fullName.split(' ').first;
   }
 
-Widget _buildFilterButton(String text, double width) {
-  bool isSelected = selectedFilter == text;
-  return GestureDetector(
-    onTap: () {
-      setState(() {
-        selectedFilter = text;
-      });
-      // Refresh data when filter is selected
-      if (text == 'Daily') {
-        _fetchDailySalesData();
-      } else if (text == 'Monthly') {
-        _fetchMonthlySalesData();
-      } else if (text == 'Yearly') {
-        _fetchYearlySalesData();
-      }
-    },
-    child: Container(
-      width: width,
-      height: 42.5,
-      decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFFFF8500) : Colors.grey,
-        borderRadius: BorderRadius.circular(1),
-      ),
-      child: Center(
-        child: Text(
-          text,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.white,
-            fontWeight: FontWeight.normal,
-            fontSize: 13,
+  Widget _buildFilterButton(String text, double width) {
+    bool isSelected = selectedFilter == text;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedFilter = text;
+        });
+        // Refresh data when filter is selected
+        if (text == 'Daily') {
+          _fetchDailySalesData();
+          _fetchDailySalesStats(); // Add this line
+        } else if (text == 'Monthly') {
+          _fetchMonthlySalesData();
+          _fetchMonthlySalesStats();
+        } else if (text == 'Yearly') {
+          _fetchYearlySalesData();
+          _fetchYearlyStats();
+        }
+      },
+      child: Container(
+        width: width,
+        height: 42.5,
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFFF8500) : Colors.grey,
+          borderRadius: BorderRadius.circular(1),
+        ),
+        child: Center(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: isSelected ? Colors.white : Colors.white,
+              fontWeight: FontWeight.normal,
+              fontSize: 13,
+            ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
+
   Widget _buildStatCard(String title, String value, Size screenSize) {
     return Container(
       height: screenSize.height * 0.15,

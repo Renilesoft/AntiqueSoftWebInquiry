@@ -1,9 +1,106 @@
+import 'package:antiquewebemquiry/Constants/baseurl.dart';
+import 'package:antiquewebemquiry/Global/location.dart';
+import 'package:antiquewebemquiry/Global/vendorid.dart';
 import 'package:antiquewebemquiry/view/date_range.dart';
 import 'package:antiquewebemquiry/view/home_screen/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:antiquewebemquiry/viewmodel/payoutreportviewmodel.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+// Model for Monthly Payable API response
+class MonthlyPayableResponse {
+  final double retailSales;
+  final double wholesaleSales;
+  final double onlineSales;
+  final double layawaySales;
+  final double returnSales;
+  final double voidSales;
+  final double salesTax;
+  final double total;
+  final double totalSales;
+
+  MonthlyPayableResponse({
+    required this.retailSales,
+    required this.wholesaleSales,
+    required this.onlineSales,
+    required this.layawaySales,
+    required this.returnSales,
+    required this.voidSales,
+    required this.salesTax,
+    required this.total,
+    required this.totalSales,
+  });
+
+  factory MonthlyPayableResponse.fromJson(Map<String, dynamic> json) {
+    return MonthlyPayableResponse(
+      retailSales: (json['retailSales'] ?? 0).toDouble(),
+      wholesaleSales: (json['wholesaleSales'] ?? 0).toDouble(),
+      onlineSales: (json['onlineSales'] ?? 0).toDouble(),
+      layawaySales: (json['layawaySales'] ?? 0).toDouble(),
+      returnSales: (json['returnSales'] ?? 0).toDouble(),
+      voidSales: (json['voidSales'] ?? 0).toDouble(),
+      salesTax: (json['salesTax'] ?? 0).toDouble(),
+      total: (json['total'] ?? 0).toDouble(),
+      totalSales: (json['totalSales'] ?? 0).toDouble(),
+    );
+  }
+}
+
+// Model for Monthly Receivable API response
+class MonthlyReceivableResponse {
+  final int vendorId;
+  final String startDate;
+  final String endDate;
+  final Financials financials;
+
+  MonthlyReceivableResponse({
+    required this.vendorId,
+    required this.startDate,
+    required this.endDate,
+    required this.financials,
+  });
+
+  factory MonthlyReceivableResponse.fromJson(Map<String, dynamic> json) {
+    return MonthlyReceivableResponse(
+      vendorId: json['vendorId'] ?? 0,
+      startDate: json['startDate'] ?? '',
+      endDate: json['endDate'] ?? '',
+      financials: Financials.fromJson(json['financials'] ?? {}),
+    );
+  }
+}
+
+class Financials {
+  final double flatCommissionPercent;
+  final double commissionOnSales;
+  final double creditCardCharges;
+  final double consignmentCommission;
+  final double vendorAdjustments;
+  final double rentalDues;
+
+  Financials({
+    required this.flatCommissionPercent,
+    required this.commissionOnSales,
+    required this.creditCardCharges,
+    required this.consignmentCommission,
+    required this.vendorAdjustments,
+    required this.rentalDues,
+  });
+
+  factory Financials.fromJson(Map<String, dynamic> json) {
+    return Financials(
+      flatCommissionPercent: (json['flatCommissionPercent'] ?? 0).toDouble(),
+      commissionOnSales: (json['commissionOnSales'] ?? 0).toDouble(),
+      creditCardCharges: (json['creditCardCharges'] ?? 0).toDouble(),
+      consignmentCommission: (json['consignmentCommission'] ?? 0).toDouble(),
+      vendorAdjustments: (json['vendorAdjustments'] ?? 0).toDouble(),
+      rentalDues: (json['rentalDues'] ?? 0).toDouble(),
+    );
+  }
+}
 
 class PayoutReportPage extends StatelessWidget {
   const PayoutReportPage({super.key});
@@ -25,10 +122,19 @@ class PayoutReportView extends StatefulWidget {
 }
 
 class _PayoutReportViewState extends State<PayoutReportView> {
+  MonthlyPayableResponse? monthlyPayableData;
+  MonthlyReceivableResponse? monthlyReceivableData;
+  bool isLoading = false;
+  String? errorMessage;
+  
+  // Store the final total for later use
+  double? finalTotalSales;
 
   @override
   void initState() {
     super.initState();
+    // Load initial data with default date range if needed
+    _loadData();
   }
 
   void _navigateToHome(BuildContext context) {
@@ -36,6 +142,105 @@ class _PayoutReportViewState extends State<PayoutReportView> {
       context,
       MaterialPageRoute(builder: (context) => const HomeScreen()),
     );
+  }
+
+  Future<void> _loadData({DateTimeRange? dateRange}) async {
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
+    try {
+      // Default date range if not provided
+      final now = DateTime.now();
+      final startDate = dateRange?.start ?? DateTime(now.year, now.month, 1);
+      final endDate = dateRange?.end ?? DateTime(now.year, now.month + 1, 0);
+
+      // Load both APIs simultaneously
+      final futures = await Future.wait([
+        _fetchMonthlyPayable(
+          location: Location.location,
+          vendorId: Vendor.vendorid!,
+          startDate: startDate,
+          endDate: endDate,
+        ),
+        _fetchMonthlyReceivable(
+          location: Location.location,
+          vendorId: Vendor.vendorid!,
+          startDate: startDate,
+          endDate: endDate,
+        ),
+      ]);
+
+      final payableData = futures[0] as MonthlyPayableResponse;
+      final receivableData = futures[1] as MonthlyReceivableResponse;
+
+      setState(() {
+        monthlyPayableData = payableData;
+        monthlyReceivableData = receivableData;
+        // Calculate and store final total sales (Total Sales - Less)
+        final totalSales = payableData.retailSales + payableData.wholesaleSales + 
+                          payableData.onlineSales + payableData.layawaySales + payableData.salesTax;
+        final lessAmount = payableData.returnSales + payableData.voidSales;
+        finalTotalSales = totalSales - lessAmount;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        errorMessage = e.toString();
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<MonthlyPayableResponse> _fetchMonthlyPayable({
+    required String location,
+    required int vendorId,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    final startDateStr = startDate.toIso8601String().split('T')[0];
+    final endDateStr = endDate.toIso8601String().split('T')[0];
+    
+    final url = '$baseurl/Home/ getMonthlyPayable'
+        '?location=$location'
+        '&vendorId=$vendorId'
+        '&startDate=$startDateStr'
+        '&endDate=$endDateStr';
+
+    final response = await http.get(Uri.parse(url));
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
+      return MonthlyPayableResponse.fromJson(data);
+    } else {
+      throw Exception('Failed to load monthly payable data: ${response.statusCode}');
+    }
+  }
+
+  Future<MonthlyReceivableResponse> _fetchMonthlyReceivable({
+    required String location,
+    required int vendorId,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    final startDateStr = startDate.toIso8601String().split('T')[0];
+    final endDateStr = endDate.toIso8601String().split('T')[0];
+    
+    final url = '$baseurl/Home/getMonthlyReceivable'
+        '?location=$location'
+        '&vendorId=$vendorId'
+        '&startDate=$startDateStr'
+        '&endDate=$endDateStr';
+
+    final response = await http.get(Uri.parse(url));
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
+      return MonthlyReceivableResponse.fromJson(data);
+    } else {
+      throw Exception('Failed to load monthly receivable data: ${response.statusCode}');
+    }
   }
 
   @override
@@ -101,28 +306,48 @@ class _PayoutReportViewState extends State<PayoutReportView> {
             color: const Color(0xFFF1EDE8),
             child: DateRangePickerWidget(
               onDateRangeSelected: (DateTimeRange range) {
-                setState(() {
-                });
+                // Load data when date range changes
+                _loadData(dateRange: range);
               },
               onSearch: () {
-                // Implement search functionality
+                // Implement additional search functionality if needed
               },
             ),
           ),
           Expanded(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildMarketPayableCard(),
-                    const SizedBox(height: 20),
-                    _buildMarketReceivableCard(),
-                  ],
-                ),
-              ),
-            ),
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : errorMessage != null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Error: $errorMessage',
+                              style: const TextStyle(color: Colors.red),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: () => _loadData(),
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildMarketPayableCard(),
+                              const SizedBox(height: 20),
+                              _buildMarketReceivableCard(),
+                            ],
+                          ),
+                        ),
+                      ),
           ),
         ],
       ),
@@ -131,6 +356,22 @@ class _PayoutReportViewState extends State<PayoutReportView> {
   }
 
   Widget _buildMarketPayableCard() {
+    if (monthlyPayableData == null) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text('No data available'),
+        ),
+      );
+    }
+
+    final data = monthlyPayableData!;
+    // Calculate first total (before deducting returns and voids)
+    final firstTotalSales = data.retailSales + data.wholesaleSales + 
+                           data.onlineSales + data.layawaySales + data.salesTax;
+    // Calculate final total (after deducting returns and voids)
+    final finalTotal = firstTotalSales - (data.returnSales + data.voidSales);
+
     return Card(
       elevation: 0,
       color: Colors.white,
@@ -179,13 +420,13 @@ class _PayoutReportViewState extends State<PayoutReportView> {
               ],
             ),
             const SizedBox(height: 16),
-            _buildPayableRow('Retail Sales', '\$253.50'),
-            _buildPayableRow('Wholesales', '\$21.00'),
-            _buildPayableRow('Online Sales', '\$0.00'),
-            _buildPayableRow('Layaway Sales', '\$0.00'),
-            _buildPayableRow('Sales Tax', '\$0.00'),
+            _buildPayableRow('Retail Sales', '\$${data.retailSales.toStringAsFixed(2)}'),
+            _buildPayableRow('Wholesales', '\$${data.wholesaleSales.toStringAsFixed(2)}'),
+            _buildPayableRow('Online Sales', '\$${data.onlineSales.toStringAsFixed(2)}'),
+            _buildPayableRow('Layaway Sales', '\$${data.layawaySales.toStringAsFixed(2)}'),
+            _buildPayableRow('Sales Tax', '\$${data.salesTax.toStringAsFixed(2)}'),
             const Divider(height: 24),
-            _buildPayable('Total Sales', '\$274.50', isBold: true),
+            _buildPayable('Total Sales', '\$${firstTotalSales.toStringAsFixed(2)}', isBold: true),
             const Divider(height: 24),
             const Text(
               'Less',
@@ -196,10 +437,10 @@ class _PayoutReportViewState extends State<PayoutReportView> {
               ),
             ),
             const SizedBox(height: 8),
-            _buildPayableRow('Sales Returns', '\$0.00'),
-            _buildPayableRow('Voids', '\$0.00'),
+            _buildPayableRow('Sales Returns', '\$${data.returnSales.toStringAsFixed(2)}'),
+            _buildPayableRow('Voids', '\$${data.voidSales.toStringAsFixed(2)}'),
             const Divider(height: 24),
-            _buildPayable('Total Sales', '\$274.50', isBold: true),
+            _buildPayable('Total Sales', '\$${finalTotal.toStringAsFixed(2)}', isBold: true),
           ],
         ),
       ),
@@ -207,6 +448,33 @@ class _PayoutReportViewState extends State<PayoutReportView> {
   }
 
   Widget _buildMarketReceivableCard() {
+    if (monthlyReceivableData == null || finalTotalSales == null) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text('No receivable data available'),
+        ),
+      );
+    }
+
+    final receivableData = monthlyReceivableData!;
+    final financials = receivableData.financials;
+    
+    // Calculate Commission on Sales as percentage of final total sales
+    final calculatedCommissionOnSales = (financials.flatCommissionPercent / 100) * finalTotalSales!;
+    
+    // Calculate Total (Commission + Consignment + Credit Card + Adjustments)
+    final total = calculatedCommissionOnSales + 
+                 financials.consignmentCommission + 
+                 financials.creditCardCharges + 
+                 financials.vendorAdjustments;
+    
+    // Calculate Total Due (Rental Dues + Total)
+    final totalDue = financials.rentalDues + total;
+    
+    // Calculate Final Amount (Total Sales - Total Due)
+    final finalAmount = finalTotalSales! - totalDue;
+
     return Card(
       elevation: 0,
       color: Colors.white,
@@ -228,21 +496,20 @@ class _PayoutReportViewState extends State<PayoutReportView> {
               ),
             ),
             const SizedBox(height: 16),
-            _buildPayableRow('Flat Commission%', '7.00'),
-            _buildPayableRow('Commission on Sales', '\$19.22'),
-            _buildPayableRow('Consignment Commission', '\$0.00'),
-            _buildPayableRow('Credit/Debit Card Charges', '\$0.00'),
-            _buildPayableRow('Adjustments(if any)', '\$0.00'),
+            _buildPayableRow('Flat Commission%', '${financials.flatCommissionPercent.toStringAsFixed(2)}%'),
+            _buildPayableRow('Commission on Sales', '\$${calculatedCommissionOnSales.toStringAsFixed(2)}'),
+            _buildPayableRow('Consignment Commission', '\$${financials.consignmentCommission.toStringAsFixed(2)}'),
+            _buildPayableRow('Credit/Debit Card Charges', '\$${financials.creditCardCharges.toStringAsFixed(2)}'),
+            _buildPayableRow('Adjustments(if any)', '\$${financials.vendorAdjustments.toStringAsFixed(2)}'),
             const Divider(height: 24),
-            _buildPayableRow('Total', '\$19.22', isBold: true),
+            _buildPayableRow('Total', '\$${total.toStringAsFixed(2)}', isBold: true),
             const Divider(height: 24),
-            _buildPayableRow('Rental Dues', '\$105.60'),
+            _buildPayableRow('Rental Dues', '\$${financials.rentalDues.toStringAsFixed(2)}'),
             const Divider(height: 24),
-            _buildPayable('Total Due', '\$124.82', isBold: true),
+            _buildPayable('Total Due', '\$${totalDue.toStringAsFixed(2)}', isBold: true),
             const Divider(height: 24),
-            _buildAutoDetect('Total Sales - Total Due', '\$149.68', isBold: true),
+            _buildAutoDetect('Total Sales - Total Due', '\$${finalAmount.toStringAsFixed(2)}', isBold: true),
             const Divider(height: 24),
-            
           ],
         ),
       ),

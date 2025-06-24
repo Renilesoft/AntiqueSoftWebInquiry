@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:antiquewebemquiry/viewmodel/change_password_view_model.dart';
+import 'package:awesome_dialog/awesome_dialog.dart';
 
 class ChangePasswordScreen extends StatelessWidget {
   const ChangePasswordScreen({super.key});
@@ -72,36 +73,45 @@ class ChangePasswordView extends StatelessWidget {
                             Icon(
                               Icons.lock_outline,
                               size: 18,
-                              // ignore: unnecessary_const
-                              color: const Color(0xFFFF8500),
+                              color: Color(0xFFFF8500),
                             ),
                             SizedBox(width: 8),
                             Text(
                               'Change Password',
                               style: TextStyle(
                                 fontSize: 14,
-                                // ignore: unnecessary_const
-                                color: const Color(0xFFFF8500),
+                                color: Color(0xFFFF8500),
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 16),
-                        _CustomTextField(
+                        PasswordField(
                           label: 'Current Password',
                           onChanged: viewModel.setCurrentPassword,
                         ),
                         const SizedBox(height: 16),
-                        _CustomTextField(
+                        PasswordField(
                           label: 'New Password',
                           onChanged: viewModel.setNewPassword,
                         ),
                         const SizedBox(height: 16),
-                        _CustomTextField(
+                        PasswordField(
                           label: 'Confirm Password',
                           onChanged: viewModel.setConfirmPassword,
                         ),
+                        if (viewModel.errorMessage != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Text(
+                              viewModel.errorMessage!,
+                              style: const TextStyle(
+                                color: Colors.red,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
                         const SizedBox(height: 24),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
@@ -111,10 +121,12 @@ class ChangePasswordView extends StatelessWidget {
                               child: TextButton(
                                 onPressed: () => Navigator.pop(context),
                                 style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 8),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(20),
-                                    side: BorderSide(color: Colors.grey.shade300),
+                                    side:
+                                        BorderSide(color: Colors.grey.shade300),
                                   ),
                                 ),
                                 child: Text(
@@ -133,14 +145,34 @@ class ChangePasswordView extends StatelessWidget {
                                 onPressed: viewModel.isLoading
                                     ? null
                                     : () async {
-                                        if (await viewModel.updatePassword()) {
-                                          // ignore: use_build_context_synchronously
-                                          Navigator.pop(context);
+                                        bool success =
+                                            await viewModel.updatePassword();
+                                        if (context.mounted) {
+                                          AwesomeDialog(
+                                            context: context,
+                                            dialogType: success
+                                                ? DialogType.success
+                                                : DialogType.error,
+                                            animType: AnimType.scale,
+                                            title: success
+                                                ? 'Success'
+                                                : 'Error',
+                                            desc: success
+                                                ? 'Password updated successfully.'
+                                                : viewModel.errorMessage ??
+                                                    'Failed to update password.',
+                                            btnOkOnPress: () {
+                                              if (success) {
+                                                Navigator.pop(context);
+                                              }
+                                            },
+                                          ).show();
                                         }
                                       },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFFFF8500),
-                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 8),
                                   elevation: 0,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(20),
@@ -152,7 +184,8 @@ class ChangePasswordView extends StatelessWidget {
                                         height: 16,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
                                             Colors.white,
                                           ),
                                         ),
@@ -181,30 +214,42 @@ class ChangePasswordView extends StatelessWidget {
   }
 }
 
-class _CustomTextField extends StatefulWidget {
+class PasswordField extends StatefulWidget {
   final String label;
   final ValueChanged<String> onChanged;
 
-  const _CustomTextField({
+  const PasswordField({
     required this.label,
     required this.onChanged,
   });
 
   @override
-  _CustomTextFieldState createState() => _CustomTextFieldState();
+  State<PasswordField> createState() => _PasswordFieldState();
 }
 
-class _CustomTextFieldState extends State<_CustomTextField> {
-  final bool _obscureText = true;
+class _PasswordFieldState extends State<PasswordField> {
+  bool _obscure = true;
 
   @override
   Widget build(BuildContext context) {
     return TextField(
-      obscureText: _obscureText,
+      obscureText: _obscure,
       cursorColor: const Color(0xFF172B4D),
       style: const TextStyle(fontSize: 14),
       decoration: InputDecoration(
         labelText: widget.label,
+        suffixIcon: IconButton(
+          icon: Icon(
+            _obscure ? Icons.visibility_off : Icons.visibility,
+            color: Colors.grey.shade600,
+            size: 20,
+          ),
+          onPressed: () {
+            setState(() {
+              _obscure = !_obscure;
+            });
+          },
+        ),
         labelStyle: TextStyle(
           color: Colors.grey.shade600,
           fontSize: 14,
@@ -217,10 +262,8 @@ class _CustomTextFieldState extends State<_CustomTextField> {
           borderRadius: BorderRadius.circular(4),
           borderSide: BorderSide(color: Colors.orange.shade700),
         ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 12,
-        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       ),
       onChanged: widget.onChanged,
     );

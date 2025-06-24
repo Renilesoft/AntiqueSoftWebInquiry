@@ -1,5 +1,10 @@
-import 'package:antiquewebemquiry/model/change_password_model.dart';
+import 'dart:convert';
+import 'package:antiquewebemquiry/Global/vendorid.dart';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'package:antiquewebemquiry/Constants/baseurl.dart';
+import 'package:antiquewebemquiry/Global/location.dart';
+import 'package:antiquewebemquiry/model/change_password_model.dart';
 
 class ChangePasswordViewModel extends ChangeNotifier {
   final ChangePasswordModel _model = ChangePasswordModel();
@@ -25,29 +30,71 @@ class ChangePasswordViewModel extends ChangeNotifier {
   }
 
   Future<bool> updatePassword() async {
-    if (!_validateInputs()) return false;
+  if (!_validateInputs()) return false;
 
-    _isLoading = true;
-    _errorMessage = null;
+  _isLoading = true;
+  _errorMessage = null;
+  notifyListeners();
+
+  try {
+    final url = Uri.parse('$baseurl/Home/changePassword');
+
+    final encryptedOldPassword = encryptString(_model.currentPassword);
+    final encryptedNewPassword = encryptString(_model.newPassword);
+
+    final body = jsonEncode({
+      "oldPassword": encryptedOldPassword,
+      "newPassword": encryptedNewPassword,
+      "location": Location.location,
+      "vendorID": Vendor.vendorid,
+    });
+
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: body,
+    );
+
+    _isLoading = false;
     notifyListeners();
 
-    try {
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 2));
-      
-      // Add your actual API call here
-      // await authService.changePassword(_model.currentPassword, _model.newPassword);
-      
-      _isLoading = false;
-      notifyListeners();
+    if (response.statusCode == 200) {
       return true;
-    } catch (e) {
-      _isLoading = false;
-      _errorMessage = 'Failed to update password. Please try again.';
-      notifyListeners();
+    } else {
+      //  Detailed logging in debug console
+      debugPrint("ChangePassword API failed with status: ${response.statusCode}");
+      debugPrint("Response body: ${response.body}");
+
+      _errorMessage = " ${response.body} ";
       return false;
     }
+  } catch (e, stacktrace) {
+    _isLoading = false;
+
+    //  Detailed debug print
+    debugPrint("Exception in updatePassword: $e");
+    debugPrint("Stack trace: $stacktrace");
+
+    _errorMessage = 'Exception: ${e.toString()}';
+    notifyListeners();
+    return false;
   }
+}
+
+
+String encryptString(String input) {
+  int xorKey = 30;
+  String result = '';
+
+  for (int i = 0; i < input.length; i++) {
+    int charCode = input.codeUnitAt(i);
+    int encryptedCharCode = charCode ^ xorKey;
+    result += String.fromCharCode(encryptedCharCode);
+  }
+
+  return result;
+}
+
 
   bool _validateInputs() {
     if (_model.currentPassword.isEmpty ||
@@ -64,11 +111,6 @@ class ChangePasswordViewModel extends ChangeNotifier {
       return false;
     }
 
-    if (_model.newPassword.length < 8) {
-      _errorMessage = 'New password must be at least 8 characters long';
-      notifyListeners();
-      return false;
-    }
 
     return true;
   }

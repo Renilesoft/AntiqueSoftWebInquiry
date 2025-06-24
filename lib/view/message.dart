@@ -1,7 +1,14 @@
+import 'dart:convert';
+import 'package:antiquewebemquiry/Constants/baseurl.dart';
+import 'package:antiquewebemquiry/Global/location.dart';
+import 'package:antiquewebemquiry/Global/username.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 class MessagePage extends StatefulWidget {
-  const MessagePage({super.key, required int initialTabIndex});
+  final int initialTabIndex;
+
+  const MessagePage({super.key, required this.initialTabIndex});
 
   @override
   State<MessagePage> createState() => _MessagePageState();
@@ -9,23 +16,60 @@ class MessagePage extends StatefulWidget {
 
 class _MessagePageState extends State<MessagePage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  
+
+  String generalMessage = '';
+  String vendorMessage = '';
+  bool isLoading = true;
+
+  final String location = Location.location; // You can make this dynamic
+  final String email = Username.username; // You can make this dynamic
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 2, vsync: this, initialIndex: widget.initialTabIndex);
+    fetchMessages();
   }
-  
+
+  Future<void> fetchMessages() async {
+    try {
+      final marketUri = Uri.parse('$baseurl/Home/getMarketMessage?location=$location');
+      final vendorUri = Uri.parse('$baseurl/Home/getVendorMessage?location=$location&email=$email');
+
+      final marketResponse = await http.get(marketUri);
+      final vendorResponse = await http.get(vendorUri);
+
+      if (marketResponse.statusCode == 200 && vendorResponse.statusCode == 200) {
+        final marketData = json.decode(marketResponse.body);
+        final vendorData = json.decode(vendorResponse.body);
+
+        setState(() {
+          generalMessage = marketData['marketMessage']?.toString().trim() ?? '';
+          vendorMessage = vendorData['vendorMessage']?.toString().trim() ?? '';
+          isLoading = false;
+        });
+      } else {
+        throw Exception('Failed to fetch data');
+      }
+    } catch (e) {
+      setState(() {
+        generalMessage = 'Error loading general message.';
+        vendorMessage = 'Error loading vendor message.';
+        isLoading = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final Size screenSize = MediaQuery.of(context).size;
-    
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -36,7 +80,7 @@ class _MessagePageState extends State<MessagePage> with SingleTickerProviderStat
           style: TextStyle(
             color: Colors.black,
             fontFamily: 'DM Sans',
-            fontSize: 16
+            fontSize: 16,
           ),
         ),
         leading: IconButton(
@@ -44,114 +88,86 @@ class _MessagePageState extends State<MessagePage> with SingleTickerProviderStat
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: Column(
-        
-        children: [
-          
-          // Tab Bar - Separated from AppBar
-          Container(
-            
-            color: Colors.white,
-            child: TabBar(
-              controller: _tabController,
-              labelColor: Colors.white,
-              unselectedLabelColor: const Color(0xFFFF8500),
-              indicator: const BoxDecoration(
-                color: Color(0xFFFF8500),
-              ),
-              indicatorSize: TabBarIndicatorSize.tab,
-              tabs: [
-                Tab(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      color: _tabController.index == 0 
-                          ? const Color(0xFFFF8500) 
-                          : Colors.white,
-                      borderRadius: BorderRadius.circular(0),
-                    ),
-                    child: const Text(
-                      'General Message',
-                      style: TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                ),
-                Tab(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      color: _tabController.index == 1 
-                          ? const Color(0xFFFF8500)
-                          : Colors.white,
-                      borderRadius: BorderRadius.circular(0),
-                    ),
-                    child: const Text(
-                      'Message for Vendors',
-                      style: TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                ),
-              ],
-              onTap: (index) {
-                setState(() {});
-              },
-            ),
-          ),
-          // Tab Bar View
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF8500)))
+          : Column(
               children: [
-                // General Message Tab
-                _buildGeneralMessageTab(screenSize),
-                
-                // Vendor Message Tab
-                _buildVendorMessageTab(screenSize),
+                Container(
+                  color: Colors.white,
+                  child: TabBar(
+                    controller: _tabController,
+                    labelColor: Colors.white,
+                    unselectedLabelColor: const Color(0xFFFF8500),
+                    indicator: const BoxDecoration(
+                      color: Color(0xFFFF8500),
+                    ),
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    tabs: [
+                      Tab(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: _tabController.index == 0 ? const Color(0xFFFF8500) : Colors.white,
+                            borderRadius: BorderRadius.circular(0),
+                          ),
+                          child: const Text(
+                            'General Message',
+                            style: TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ),
+                      Tab(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: _tabController.index == 1 ? const Color(0xFFFF8500) : Colors.white,
+                            borderRadius: BorderRadius.circular(0),
+                          ),
+                          child: const Text(
+                            'Message for Vendors',
+                            style: TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ),
+                    ],
+                    onTap: (index) {
+                      setState(() {});
+                    },
+                  ),
+                ),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildMessageTab(screenSize, 'Message from Market', generalMessage),
+                      _buildMessageTab(screenSize, 'Message for Vendors', vendorMessage),
+                    ],
+                  ),
+                ),
               ],
             ),
+    );
+  }
+
+  Widget _buildMessageTab(Size screenSize, String title, String message) {
+    return Container(
+      color: const Color(0xFFF1EDE8),
+      child: ListView(
+        children: [
+          _buildMessageCard(
+            title: title,
+            time: '',
+            message: message,
+            isUnread: true,
           ),
         ],
       ),
     );
   }
-  
-  Widget _buildGeneralMessageTab(Size screenSize) {
-    return Container(
-      color: const Color(0xFFF1EDE8),
-      child: ListView.builder(
-        itemCount: 1, // Sample message count
-        itemBuilder: (context, index) {
-          return _buildMessageCard(
-            title: 'Message From Market',
-            time: '10 AM',
-            message: 'Big Market Days Ahead! Join the Mega Flea Market Festival!!!',
-            isUnread: index == 0,
-          );
-        },
-      ),
-    );
-  }
-  
-  Widget _buildVendorMessageTab(Size screenSize) {
-    return Container(
-      color: const Color(0xFFF1EDE8),
-      child: ListView.builder(
-        itemCount: 1, // Sample message count
-        itemBuilder: (context, index) {
-          return _buildMessageCard(
-            title: 'Message From Vendors',
-            time: '10 AM',
-            message: 'Big Market Days Ahead! Join the Mega Flea Market Festival!!!',
-            isUnread: index == 0,
-          );
-        },
-      ),
-    );
-  }
-  
+
   Widget _buildMessageCard({
-    required String title, 
-    required String time, 
+    required String title,
+    required String time,
     required String message,
     bool isUnread = false,
     bool showViewMore = true,
@@ -165,7 +181,7 @@ class _MessagePageState extends State<MessagePage> with SingleTickerProviderStat
       ),
       child: InkWell(
         onTap: () {
-          // Handle message tap - open message detail
+          // Message tap action
         },
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -178,7 +194,7 @@ class _MessagePageState extends State<MessagePage> with SingleTickerProviderStat
                     title,
                     style: const TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.bold,
                       color: Color(0xFF2D3142),
                     ),
                   ),
@@ -214,7 +230,7 @@ class _MessagePageState extends State<MessagePage> with SingleTickerProviderStat
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         minimumSize: Size.zero,
                       ),
-                      child: const Text('View more'),
+                      child: const Text(''),
                     ),
                   ],
                 ),

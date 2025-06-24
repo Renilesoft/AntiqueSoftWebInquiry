@@ -1,4 +1,5 @@
 import 'package:antiquewebemquiry/Constants/baseurl.dart';
+import 'package:antiquewebemquiry/Global/sales.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
@@ -116,29 +117,40 @@ class _SalesReportState extends State<SalesReport> {
     
     // Load initial data
     _fetchSalesData();
-  }
-
-  Future<void> _fetchSalesData() async {
-    if (startDate == null || endDate == null) return;
     
-    setState(() {
-      isLoading = true;
-      errorMessage = null;
-    });
-
-    try {
-      final response = await _callSalesAPI();
-      setState(() {
-        salesResponse = response;
-        isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        errorMessage = e.toString();
-        isLoading = false;
-      });
-    }
   }
+
+Future<void> _fetchSalesData() async {
+  if (startDate == null || endDate == null) return;
+  
+  setState(() {
+    isLoading = true;
+    errorMessage = null;
+  });
+
+  try {
+    final response = await _callSalesAPI();
+    setState(() {
+      salesResponse = response;
+      isLoading = false;
+    });
+    
+    // Save the totals to SharedPreferences based on filter type
+    if (widget.filterType == 'Monthly') {
+      await MonthlyTotalItems.save(response.totalItems);
+      await MonthlyTotalSales.save(response.totalSales);
+    } else if (widget.filterType == 'Daily') {
+      await DailyTotalItems.save(response.totalItems);
+      await DailyTotalSales.save(response.totalSales);
+    }
+    
+  } catch (e) {
+    setState(() {
+      errorMessage = e.toString();
+      isLoading = false;
+    });
+  }
+}
 
   Future<SalesResponse> _callSalesAPI() async {
     String url;

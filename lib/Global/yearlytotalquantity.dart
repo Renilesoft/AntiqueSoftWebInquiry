@@ -13,4 +13,14 @@ class TotalQuantity {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     totalQuantity = prefs.getInt('yearly_total_quantity') ?? 0;
   }
+
+  static int get() {
+    return totalQuantity;
+  }
+
+  static Future<void> clear() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove('yearly_total_quantity');
+    totalQuantity = 0;
+  }
 }
