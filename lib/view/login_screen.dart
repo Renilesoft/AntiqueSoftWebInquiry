@@ -18,14 +18,14 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final loginViewModel = context.watch<LoginViewModel>();
     final screenWidth = MediaQuery.of(context).size.width;
-    double scaleFactor = screenWidth / 410;
+    double scaleFactor = screenWidth / 422;
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: Center(
         child: SingleChildScrollView(
           child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24.0 * scaleFactor),
+            padding: EdgeInsets.symmetric(horizontal: 22.0 * scaleFactor),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -33,10 +33,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(height: 80 * scaleFactor),
                 SvgPicture.asset(
                   'assets/logo.svg',
-                  height: 150 * scaleFactor,
+                  height: 130 * scaleFactor,
                   fit: BoxFit.contain,
                 ),
-                SizedBox(height: 40 * scaleFactor),
+                SizedBox(height: 38 * scaleFactor),
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
