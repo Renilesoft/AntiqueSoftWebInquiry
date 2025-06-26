@@ -34,9 +34,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 Column(
                   children: [
                     SizedBox(
-                      width: 115, // fixed width for consistency
+                      width: 150,
+                      height: 120, // fixed width for consistency
                       child: AspectRatio(
-                        aspectRatio: 0.8, // maintains square shape
+                        aspectRatio: 0.5, // maintains square shape
                         child: FittedBox(
                           fit: BoxFit.contain,
                           child: SvgPicture.asset(
@@ -45,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 1),
+                    const SizedBox(height: 7),
                     RichText(
                       textAlign: TextAlign.center,
                       text: const TextSpan(
