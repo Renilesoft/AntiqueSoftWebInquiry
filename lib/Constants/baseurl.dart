@@ -1,2 +1,1 @@
 String baseurl = "http://192.168.10.26/Antiquesoft";
-// String baseurl = "http://192.168.10.26/Antiquesoft";

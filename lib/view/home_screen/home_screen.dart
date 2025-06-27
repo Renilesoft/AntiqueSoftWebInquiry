@@ -1288,8 +1288,8 @@ Widget _buildChart(Size screenSize) {
 },
 'Yearly': {
   'labels': yearlySalesLabels,
-  'maxY': maxYearlySales,
-  'interval': maxYearlySales / 5, // Dynamic interval based on max value
+  'maxY': 10000.0,
+  'interval': 2000.0, // Dynamic interval based on max value
   'spots': yearlySalesSpots.isNotEmpty ? yearlySalesSpots : const [
     FlSpot(0, 15000),
     FlSpot(1, 25000),
