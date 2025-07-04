@@ -26,64 +26,47 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _initializeApp() async {
-    // Show splash screen for at least 2 seconds for better UX
     await Future.delayed(const Duration(seconds: 2));
-    
-    // Check login status and navigate accordingly
     await _checkLoginStatus();
   }
 
   Future<void> _checkLoginStatus() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
-      // Check if user session exists
+
       final username = prefs.getString('username');
       final location = prefs.getString('location');
       final vendorId = prefs.getInt('vendorid');
-      
-      if (username != null && location != null && vendorId != null) {
-        // User is logged in, restore session and go to home
+      final hasLoggedIn = prefs.getBool('hasLoggedInOnThisDevice') ?? false;
+
+      if (username != null && location != null && vendorId != null && hasLoggedIn) {
         await _restoreUserSession(username, location, vendorId);
       } else {
-        // User is not logged in, go to login screen
         _navigateToLogin();
       }
     } catch (e) {
-      print('Error checking login status: $e');
-      // If there's an error, safely navigate to login
       _navigateToLogin();
     }
   }
 
   Future<void> _restoreUserSession(String username, String location, int vendorId) async {
     try {
-      // The global data is already loaded in main.dart, but let's refresh it
       await Location.loadlocation();
       await Username.loadusername();
       await Vendor.loadVendorId();
 
-      // Get the app data provider
       final appData = Provider.of<AppData>(context, listen: false);
-      
       final prefs = await SharedPreferences.getInstance();
-      
-      // Try to get additional user data if stored
       final userDataJson = prefs.getString('userData');
+
       if (userDataJson != null) {
-        // If you stored complete user data as JSON during login
         final userData = UserData.fromJsonString(userDataJson);
         appData.updateUserData([userData]);
-        
-        // Initialize SignalR connection
-       
       } else {
-        // If only basic data is stored, create a minimal UserData object
-        // Get additional stored data with default values
         final alphaNumericVendorID = prefs.getString('alphaNumericVendorID') ?? '';
         final vendorName = prefs.getString('vendorName') ?? '';
         final joinedDateString = prefs.getString('joinedDate');
-        final joinedDate = joinedDateString != null 
+        final joinedDate = joinedDateString != null
             ? DateTime.tryParse(joinedDateString) ?? DateTime.now()
             : DateTime.now();
 
@@ -94,19 +77,11 @@ class _SplashScreenState extends State<SplashScreen> {
           joinedDate: joinedDate,
         );
         appData.updateUserData([userData]);
-        
-        // Initialize SignalR connection
-        
       }
-      
-      // Set sales date time
-      appData.setSalesDateTime(DateTime.now().toUtc());
 
-      // Navigate to home screen
+      appData.setSalesDateTime(DateTime.now().toUtc());
       _navigateToHome();
     } catch (e) {
-      print('Error restoring session: $e');
-      // If restoration fails, go to login
       _navigateToLogin();
     }
   }
@@ -139,7 +114,6 @@ class _SplashScreenState extends State<SplashScreen> {
           children: [
             _buildLogoWithText(),
             const SizedBox(height: 30),
-            // Add a loading indicator
             const SizedBox(
               width: 30,
               height: 30,
@@ -158,15 +132,15 @@ class _SplashScreenState extends State<SplashScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         double screenWidth = constraints.maxWidth;
-        double scaleFactor = screenWidth / 422; // Base width scaling
+        double scaleFactor = screenWidth / 422;
 
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             FractionallySizedBox(
-              widthFactor: 0.20, // 20% of screen width
+              widthFactor: 0.20,
               child: AspectRatio(
-                aspectRatio: 1, // Maintain square logo shape
+                aspectRatio: 1,
                 child: SvgPicture.asset(
                   'assets/logo.svg',
                   fit: BoxFit.contain,

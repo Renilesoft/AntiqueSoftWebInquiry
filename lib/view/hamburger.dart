@@ -90,7 +90,6 @@ class DrawerMenu extends StatelessWidget {
       showCancelBtn: true,
       onConfirmBtnTap: () {
         Navigator.of(context).pop(); // Close the alert
-        // Call logout AFTER dialog closes
         Future.delayed(const Duration(milliseconds: 300), () {
           _performLogout(context);
         });
@@ -118,18 +117,16 @@ class DrawerMenu extends StatelessWidget {
     try {
       final response = await http.post(url, headers: headers, body: body);
       if (response.statusCode == 200) {
-        // Stop SignalR connection before logout
         final appData = Provider.of<AppData>(context, listen: false);
-        
 
-        // Use LoginViewModel's logout method to properly clear session data
         final loginViewModel = Provider.of<LoginViewModel>(context, listen: false);
         await loginViewModel.logout();
 
-        // Clear session data while preserving Remember Me data
         await _clearSessionData();
 
-        // Navigate to login screen
+        // Mark that this device has not logged in anymore
+        await prefs.setBool('hasLoggedInOnThisDevice', false);
+
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -143,30 +140,24 @@ class DrawerMenu extends StatelessWidget {
     }
   }
 
-  /// Clears session data while preserving Remember Me credentials
   Future<void> _clearSessionData() async {
     final prefs = await SharedPreferences.getInstance();
-
-    // First, check if Remember Me is enabled and store the credentials temporarily
     final rememberMe = prefs.getBool('rememberMe') ?? false;
     String? rememberedStoreCode;
     String? rememberedUsername;
     String? rememberedPassword;
 
     if (rememberMe) {
-      // Preserve Remember Me credentials
       rememberedStoreCode = prefs.getString('rememberedStoreCode');
       rememberedUsername = prefs.getString('rememberedUsername');
       rememberedPassword = prefs.getString('rememberedPassword');
     }
 
-    // Clear all preferences
     await prefs.clear();
 
-    // Restore Remember Me data if it was enabled
-    if (rememberMe && 
-        rememberedStoreCode != null && 
-        rememberedUsername != null && 
+    if (rememberMe &&
+        rememberedStoreCode != null &&
+        rememberedUsername != null &&
         rememberedPassword != null) {
       await prefs.setBool('rememberMe', true);
       await prefs.setString('rememberedStoreCode', rememberedStoreCode);

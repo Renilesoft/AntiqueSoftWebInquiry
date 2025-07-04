@@ -20,17 +20,18 @@ import '../report_screen/report_screen.dart';
 import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final bool showWelcomeMessage;
+  const HomeScreen({super.key, this.showWelcomeMessage = false});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+  bool _showWelcomeNotification = false; 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   String selectedFilter = 'Daily';
   bool _showReport = false;
-  bool _showWelcomeNotification = true; // Control the visibility of the welcome notification
   late AnimationController _animationController;
   late Animation<double> _animation;
   List<FlSpot> dailySalesSpots = [];
@@ -91,7 +92,10 @@ void initState() {
       parent: _animationController,
       curve: Curves.easeInOut,
     ),
+     
   );
+
+  _showWelcomeNotification = widget.showWelcomeMessage;
 
   _fetchVendorName();
   _fetchDailySalesData();
@@ -150,7 +154,7 @@ Future<void> _refreshPage() async {
 }
 
 void _startNotificationTimer() {
-  _notificationTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+  _notificationTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
     _fetchNotifications();
   });
 }
@@ -170,7 +174,7 @@ Future<void> _fetchNotifications() async {
   });
 
   try {
-    final String url = 'http://192.168.10.26/Antiquesoft/Home/newSalesAndNotify?location=${Location.location}&vendorId=${Vendor.vendorid}';
+    final String url = '$baseurl/Home/newSalesAndNotify?location=${Location.location}&vendorId=${Vendor.vendorid}';
     
     final response = await http.get(
       Uri.parse(url),

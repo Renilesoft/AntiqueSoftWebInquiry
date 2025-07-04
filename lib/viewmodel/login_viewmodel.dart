@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:antiquewebemquiry/app_data.dart';
 import 'package:antiquewebemquiry/user_data.dart';
 import 'package:flutter/material.dart';
@@ -103,113 +102,103 @@ class LoginViewModel extends ChangeNotifier {
   }
 
   Future<bool> login(BuildContext context) async {
-    _setLoading(true);
+  _setLoading(true);
 
-    try {
-      final storeCode = storeCodeController.text.trim();
-      final username = usernameController.text.trim();
-      final password = passwordController.text.trim();
-      final fcmToken = await FirebaseMessaging.instance.getToken();
+  try {
+    final storeCode = storeCodeController.text.trim();
+    final username = usernameController.text.trim();
+    final password = passwordController.text.trim();
+    final fcmToken = await FirebaseMessaging.instance.getToken();
 
-      if (fcmToken == null) {
-        _setLoading(false);
-        
-          debugPrint('Failed to get FCM token');
-        
-        return false;
-      }
-
-      final response = await http.post(
-        Uri.parse("$baseurl/Home/login"),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          "location": storeCode,
-          "username": username,
-          "password": encryptString(password),
-          "fcmToken": fcmToken,
-        }),
-      ).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final jsonMap = jsonDecode(response.body);
-
-        if (jsonMap.containsKey('userCredentials') &&
-            jsonMap['userCredentials'] is List &&
-            jsonMap['message'] == "Success") {
-          final userCredentials = jsonMap['userCredentials'];
-          final userDataList = userCredentials
-              .map<UserData>((item) => UserData.fromJson(item['userData']))
-              .toList();
-
-          final user = userDataList.first;
-
-          final prefs = await SharedPreferences.getInstance();
-          
-          // Store session data for auto-login
-          await prefs.setString('username', username);
-          await prefs.setString('location', storeCode);
-          await prefs.setInt('vendorid', user.vendorID);
-          
-          // Store complete user data as JSON for session restoration
-          await prefs.setString('userData', jsonEncode(user.toJson()));
-          
-          // Store login timestamp for session validation
-          await prefs.setInt('loginTimestamp', DateTime.now().millisecondsSinceEpoch);
-
-          // Handle Remember Me functionality after successful login
-          if (_rememberMe) {
-            await prefs.setBool('rememberMe', true);
-            await _saveCredentials();
-          } else {
-            // If Remember Me is unchecked, clear saved credentials
-            await prefs.remove('rememberedStoreCode');
-            await prefs.remove('rememberedUsername');
-            await prefs.remove('rememberedPassword');
-            await prefs.setBool('rememberMe', false);
-          }
-
-          await Location.loadlocation();
-          await Username.loadusername();
-          await Vendor.loadVendorId();
-
-          final appData = Provider.of<AppData>(context, listen: false);
-          appData.updateUserData(userDataList);
-          appData.setSalesDateTime(DateTime.now().toUtc());
-
-        
-
-          _setLoading(false);
-
-          if (context.mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
-            );
-          }
-
-          return true;
-        } else {
-          _setLoading(false);
-          
-            debugPrint("Login failed: ${jsonMap["message"]}");
-          
-          return false;
-        }
-      } else {
-        _setLoading(false);
-        
-          debugPrint("Login failed: ${response.statusCode}");
-       
-        return false;
-      }
-    } catch (e) {
+    if (fcmToken == null) {
       _setLoading(false);
-     
-     debugPrint("Error: $e");
-      
+      debugPrint('Failed to get FCM token');
       return false;
     }
+
+    final response = await http.post(
+      Uri.parse("$baseurl/Home/login"),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        "location": storeCode,
+        "username": username,
+        "password": encryptString(password),
+        "fcmToken": fcmToken,
+      }),
+    ).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final jsonMap = jsonDecode(response.body);
+
+      if (jsonMap.containsKey('userCredentials') &&
+          jsonMap['userCredentials'] is List &&
+          jsonMap['message'] == "Success") {
+        final userCredentials = jsonMap['userCredentials'];
+        final userDataList = userCredentials
+            .map<UserData>((item) => UserData.fromJson(item['userData']))
+            .toList();
+
+        final user = userDataList.first;
+        final prefs = await SharedPreferences.getInstance();
+
+        // ✅ Store session data
+        await prefs.setString('username', username);
+        await prefs.setString('location', storeCode);
+        await prefs.setInt('vendorid', user.vendorID);
+        await prefs.setString('userData', jsonEncode(user.toJson()));
+        await prefs.setInt('loginTimestamp', DateTime.now().millisecondsSinceEpoch);
+
+        // ✅ Mark device as logged in
+        await prefs.setBool('hasLoggedInOnThisDevice', true);
+
+        // ✅ Remember Me logic
+        if (_rememberMe) {
+          await prefs.setBool('rememberMe', true);
+          await _saveCredentials();
+        } else {
+          await prefs.remove('rememberedStoreCode');
+          await prefs.remove('rememberedUsername');
+          await prefs.remove('rememberedPassword');
+          await prefs.setBool('rememberMe', false);
+        }
+
+        await Location.loadlocation();
+        await Username.loadusername();
+        await Vendor.loadVendorId();
+
+        final appData = Provider.of<AppData>(context, listen: false);
+        appData.updateUserData(userDataList);
+        appData.setSalesDateTime(DateTime.now().toUtc());
+
+        _setLoading(false);
+
+        if (context.mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const HomeScreen(showWelcomeMessage: true),
+            ),
+          );
+        }
+
+        return true;
+      } else {
+        _setLoading(false);
+        debugPrint("Login failed: ${jsonMap["message"]}");
+        return false;
+      }
+    } else {
+      _setLoading(false);
+      debugPrint("Login failed: ${response.statusCode}");
+      return false;
+    }
+  } catch (e) {
+    _setLoading(false);
+    debugPrint("Error: $e");
+    return false;
   }
+}
+
 
   // Method to handle logout - call this from your logout functionality
   Future<void> logout() async {
