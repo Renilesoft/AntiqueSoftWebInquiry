@@ -331,10 +331,6 @@ Future<void> _fetchSalesData() async {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: isTablet ? IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.grey),
-          onPressed: widget.onClose,
-        ) : null,
         centerTitle: true,
         title: Row(
           mainAxisSize: MainAxisSize.min,

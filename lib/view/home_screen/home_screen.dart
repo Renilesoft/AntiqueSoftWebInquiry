@@ -17,6 +17,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../report_screen/report_screen.dart';
+import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -35,7 +36,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   List<FlSpot> dailySalesSpots = [];
   List<String> dailySalesLabels = [];
   bool isLoadingDailySales = false;
-  double maxDailySales = 1000.0;
+  double maxDailySales = 5000.0;
 
   List<FlSpot> monthlySalesSpots = [];
   List<String> monthlySalesLabels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
@@ -51,6 +52,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   String marketMessage = 'Loading...';
   bool isLoadingMarketMessage = true;
+
+  Timer? _notificationTimer;
+  int _notificationCount = 0;
+  bool _isLoadingNotifications = false;
 
   
   // API related variables
@@ -96,8 +101,19 @@ void initState() {
   _fetchMarketMessage();
   _fetchDailySalesStats();
   _fetchMonthlySalesStats();
-  _fetchYearlyStats();// 👈 Load shared prefs
+  _fetchYearlyStats();
+  _fetchNotifications(); // Initial fetch
+  _startNotificationTimer(); // Start polling// 👈 Load shared prefs
   
+}
+
+void _navigateToNotificationPage() {
+  // Navigator.push(
+  //   context,
+  //   MaterialPageRoute(
+  //     builder: (context) => const NotificationsPage(),
+  //   ),
+  // );
 }
 
 Map<String, String> dailyStats = {
@@ -131,6 +147,59 @@ Future<void> _refreshPage() async {
   
   // Update the UI
   setState(() {});
+}
+
+void _startNotificationTimer() {
+  _notificationTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+    _fetchNotifications();
+  });
+}
+
+// Add this method to stop the timer
+void _stopNotificationTimer() {
+  _notificationTimer?.cancel();
+  _notificationTimer = null;
+}
+
+
+Future<void> _fetchNotifications() async {
+  if (_isLoadingNotifications) return; // Prevent multiple simultaneous calls
+  
+  setState(() {
+    _isLoadingNotifications = true;
+  });
+
+  try {
+    final String url = 'http://192.168.10.26/Antiquesoft/Home/newSalesAndNotify?location=${Location.location}&vendorId=${Vendor.vendorid}';
+    
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
+      final int newSalesCount = data['salesCount'] ?? 0;
+      
+      setState(() {
+        _notificationCount = newSalesCount;
+        _isLoadingNotifications = false;
+      });
+    } else {
+      setState(() {
+        _isLoadingNotifications = false;
+      });
+      print('Failed to load notifications: ${response.statusCode}');
+    }
+  } catch (e) {
+    setState(() {
+      _isLoadingNotifications = false;
+    });
+    print('Error loading notifications: $e');
+  }
 }
 
 Future<void> _fetchYearlyStats() async {
@@ -176,7 +245,7 @@ Future<void> _fetchYearlyStats() async {
         };
         isLoadingYearlyStats = false;
       });
-      _showErrorSnackBar('Failed to load yearly stats: ${response.statusCode}');
+      print('Failed to load yearly stats: ${response.statusCode}');
     }
   } catch (e) {
     setState(() {
@@ -187,7 +256,7 @@ Future<void> _fetchYearlyStats() async {
       isLoadingYearlyStats = false;
     });
     print('Yearly Stats Error: $e'); // Debug print
-    _showErrorSnackBar('Error loading yearly stats: ${e.toString()}');
+    print('Error loading yearly stats: ${e.toString()}');
   }
 }
 
@@ -234,7 +303,7 @@ Future<void> _fetchDailySalesStats() async {
         };
         isLoadingDailyStats = false;
       });
-      _showErrorSnackBar('Failed to load daily sales stats: ${response.statusCode}');
+      debugPrint('Failed to load daily sales stats: ${response.statusCode}');
     }
   } catch (e) {
     setState(() {
@@ -245,7 +314,7 @@ Future<void> _fetchDailySalesStats() async {
       isLoadingDailyStats = false;
     });
     print('Daily Sales Stats Error: $e'); // Debug print
-    _showErrorSnackBar('Error loading daily sales stats: ${e.toString()}');
+    debugPrint('Error loading daily sales stats: ${e.toString()}');
   }
 }
 
@@ -326,7 +395,7 @@ Future<void> _fetchMonthlySalesStats() async {
         };
         isLoadingMonthlyStats = false;
       });
-      _showErrorSnackBar('Failed to load monthly sales stats: ${response.statusCode}');
+      debugPrint('Failed to load monthly sales stats: ${response.statusCode}');
     }
   } catch (e) {
     setState(() {
@@ -337,7 +406,7 @@ Future<void> _fetchMonthlySalesStats() async {
       isLoadingMonthlyStats = false;
     });
     print('Monthly Sales Stats Error: $e'); // Debug print
-    _showErrorSnackBar('Error loading monthly sales stats: ${e.toString()}');
+    debugPrint('Error loading monthly sales stats: ${e.toString()}');
   }
 }
 
@@ -409,14 +478,14 @@ Future<void> _fetchYearlySalesData() async {
       setState(() {
         isLoadingYearlySales = false;
       });
-      _showErrorSnackBar('Failed to load yearly sales data: ${response.statusCode}');
+      debugPrint('Failed to load yearly sales data: ${response.statusCode}');
     }
   } catch (e) {
     setState(() {
       isLoadingYearlySales = false;
     });
     print('Yearly Sales Error: $e'); // Debug print
-    _showErrorSnackBar('Error loading yearly sales data: ${e.toString()}');
+    debugPrint('Error loading yearly sales data: ${e.toString()}');
   }
 }
 
@@ -487,14 +556,14 @@ Future<void> _fetchDailySalesData() async {
       setState(() {
         isLoadingDailySales = false;
       });
-      _showErrorSnackBar('Failed to load daily sales data: ${response.statusCode}');
+      debugPrint('Failed to load daily sales data: ${response.statusCode}');
     }
   } catch (e) {
     setState(() {
       isLoadingDailySales = false;
     });
     print('Error: $e'); // Debug print
-    _showErrorSnackBar('Error loading daily sales data: ${e.toString()}');
+    debugPrint('Error loading daily sales data: ${e.toString()}');
   }
 }
 
@@ -585,14 +654,14 @@ Future<void> _fetchMonthlySalesData() async {
       setState(() {
         isLoadingMonthlySales = false;
       });
-      _showErrorSnackBar('Failed to load monthly sales data: ${response.statusCode}');
+      debugPrint('Failed to load monthly sales data: ${response.statusCode}');
     }
   } catch (e) {
     setState(() {
       isLoadingMonthlySales = false;
     });
     print('Monthly Sales Error: $e'); // Debug print
-    _showErrorSnackBar('Error loading monthly sales data: ${e.toString()}');
+    debugPrint('Error loading monthly sales data: ${e.toString()}');
   }
 }
 
@@ -602,6 +671,7 @@ Future<void> _fetchMonthlySalesData() async {
   @override
   void dispose() {
     _animationController.dispose();
+    _stopNotificationTimer();
     super.dispose();
   }
 
@@ -632,7 +702,7 @@ Future<void> _fetchMonthlySalesData() async {
           vendorName = 'User';
           isLoadingVendorName = false;
         });
-        _showErrorSnackBar('Failed to load vendor name: ${response.statusCode}');
+        debugPrint('Failed to load vendor name: ${response.statusCode}');
       }
     } catch (e) {
       // Handle network or parsing errors
@@ -640,20 +710,7 @@ Future<void> _fetchMonthlySalesData() async {
         vendorName = 'User';
         isLoadingVendorName = false;
       });
-      _showErrorSnackBar('Error loading vendor name: ${e.toString()}');
-    }
-  }
-
-  // Show error message to user
-  void _showErrorSnackBar(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      debugPrint('Error loading vendor name: ${e.toString()}');
     }
   }
 
@@ -703,14 +760,6 @@ Future<void> _fetchMonthlySalesData() async {
     );
   }
 
-  void _navigateToNotificationPage() {
-    // Navigator.push(
-    //   context,
-    //   // MaterialPageRoute(
-    //   //   builder: (context) => const NotificationPopupScreen(),
-    //   // ),
-    // );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -774,12 +823,13 @@ Future<void> _fetchMonthlySalesData() async {
                               ],
                             ),
                             Stack(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.notifications_outlined),
-                                  color: Colors.black,
-                                  onPressed: _navigateToNotificationPage,
-                                ),
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.notifications_outlined),
+                                color: Colors.black,
+                                onPressed: _navigateToNotificationPage,
+                              ),
+                              if (_notificationCount > 0) // Only show badge if count > 0
                                 Positioned(
                                   right: 8,
                                   top: 8,
@@ -793,9 +843,9 @@ Future<void> _fetchMonthlySalesData() async {
                                       minWidth: 14,
                                       minHeight: 14,
                                     ),
-                                    child: const Text(
-                                      '1',
-                                      style: TextStyle(
+                                    child: Text(
+                                      _notificationCount > 99 ? '99+' : _notificationCount.toString(),
+                                      style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 8,
                                       ),
@@ -803,8 +853,8 @@ Future<void> _fetchMonthlySalesData() async {
                                     ),
                                   ),
                                 ),
-                              ],
-                            ),
+                            ],
+                          ),
                             IconButton(
                               icon: const Icon(Icons.menu),
                               color: Colors.black,
@@ -1272,12 +1322,12 @@ Widget _buildChart(Size screenSize) {
   'Daily': {
     'labels': dailySalesLabels.isNotEmpty ? dailySalesLabels : ['Sun\n(Jun 15)', 'Mon\n(Jun 16)', 'Tue\n(Jun 17)', 'Wed\n(Jun 18)', 'Thu\n(Jun 19)', 'Fri\n(Jun 20)', 'Sat\n(Jun 21)'],
     'maxY': 1000.0, // Fixed to 100
-    'interval': 100.0, // Y-axis intervals of 20 (0, 20, 40, 60, 80, 100)
+    'interval': 100.0,
     'spots': dailySalesSpots.isNotEmpty ? dailySalesSpots : <FlSpot>[],
   },
 'Monthly': {
   'labels': monthlySalesLabels,
-  'maxY': 5000.0,
+  'maxY': 10000.0,
   'interval': 1000.0, // Dynamic interval based on max value
   'spots': monthlySalesSpots.isNotEmpty ? monthlySalesSpots : const [
     FlSpot(0, 2000),
@@ -1288,8 +1338,8 @@ Widget _buildChart(Size screenSize) {
 },
 'Yearly': {
   'labels': yearlySalesLabels,
-  'maxY': 10000.0,
-  'interval': 2000.0, // Dynamic interval based on max value
+  'maxY': 50000.0,
+  'interval': 5000.0, // Dynamic interval based on max value
   'spots': yearlySalesSpots.isNotEmpty ? yearlySalesSpots : const [
     FlSpot(0, 15000),
     FlSpot(1, 25000),
@@ -1316,9 +1366,9 @@ Widget _buildChart(Size screenSize) {
 
 Widget chartWidget = SizedBox(
   width: chartWidth,
-  height: screenSize.height * 0.35,
+  height: screenSize.height * 0.40,
   child: Padding(
-    padding: EdgeInsets.fromLTRB(0, screenSize.height * 0.015, screenSize.width * 0.03, screenSize.height * 0.015),
+    padding: EdgeInsets.fromLTRB(0, screenSize.height * 0.013, screenSize.width * 0.03, screenSize.height * 0.010),
     child: isLoadingDailySales && selectedFilter == 'Daily'
         ? const Center(
             child: CircularProgressIndicator(
@@ -1365,11 +1415,11 @@ Widget chartWidget = SizedBox(
                         reservedSize: screenSize.width * 0.124,
                         getTitlesWidget: (value, meta) {
                           return Padding(
-                            padding: EdgeInsets.only(right: screenSize.width * 0.02),
+                            padding: EdgeInsets.only(right: screenSize.width * 0.01),
                             child: Text(
                               value.toInt().toString(),
                               style: TextStyle(
-                                fontSize: screenSize.width > 600 ? 13 : 11,
+                                fontSize: screenSize.width > 600 ? 10 : 8,
                                 color: Colors.black,
                               ),
                               textAlign: TextAlign.right,
@@ -1382,7 +1432,7 @@ Widget chartWidget = SizedBox(
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: screenSize.height * 0.047, // Increased for three-line labels
+                        reservedSize: screenSize.height * 0.060, // Increased for three-line labels
                         getTitlesWidget: (value, meta) {
                           if (value.toInt() >= currentConfig['labels'].length) {
                             return const SizedBox.shrink();
@@ -1392,9 +1442,9 @@ Widget chartWidget = SizedBox(
                             child: Text(
                               currentConfig['labels'][value.toInt()],
                               style: TextStyle(
-                                fontSize: screenSize.width > 600 ? 11 : 9, // Slightly smaller font for 3 lines
+                                fontSize: screenSize.width > 600 ? 10 : 5, // Slightly smaller font for 3 lines
                                 color: Colors.black,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.normal,
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -1453,7 +1503,7 @@ Widget chartWidget = SizedBox(
                             '$label\n\$${touchedSpot.y.toStringAsFixed(2)}',
                             TextStyle(
                               color: Colors.white,
-                              fontSize: screenSize.width > 600 ? 14 : 12,
+                              fontSize: screenSize.width > 600 ? 12 : 10,
                             ),
                           );
                         }).toList();

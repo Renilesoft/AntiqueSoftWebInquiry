@@ -1,18 +1,42 @@
+import 'package:antiquewebemquiry/app_data.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
-import 'package:awesome_dialog/awesome_dialog.dart';
+import 'package:quickalert/quickalert.dart';
 import '../viewmodel/login_viewmodel.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  Widget build(BuildContext context) {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => LoginViewModel()),
+        ChangeNotifierProvider(create: (_) => AppData()),
+      ],
+      child: const _LoginScreenContent(),
+    );
+  }
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenContent extends StatefulWidget {
+  const _LoginScreenContent();
+
+  @override
+  State<_LoginScreenContent> createState() => _LoginScreenContentState();
+}
+
+class _LoginScreenContentState extends State<_LoginScreenContent> {
   bool isUsingStoreCode = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<LoginViewModel>().restoreSavedCredentials();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,27 +57,27 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(height: 80 * scaleFactor),
                 Column(
                   children: [
-                    SizedBox(
-                      width: 150,
-                      height: 120, // fixed width for consistency
-                      child: AspectRatio(
-                        aspectRatio: 0.5, // maintains square shape
-                        child: FittedBox(
-                          fit: BoxFit.contain,
-                          child: SvgPicture.asset(
-                            'assets/logo.svg',
-                          ),
-                        ),
+                    // ⭐ NEW RESPONSIVE LOGO ⭐
+                    Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20 * scaleFactor),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          double logoWidth = constraints.maxWidth * 0.45;
+                          return Center(
+                            child: SvgPicture.asset(
+                              'assets/logo.svg',
+                              width: logoWidth,
+                              fit: BoxFit.contain,
+                            ),
+                          );
+                        },
                       ),
                     ),
                     const SizedBox(height: 7),
                     RichText(
                       textAlign: TextAlign.center,
                       text: const TextSpan(
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontFamily: 'Arial',
-                        ),
+                        style: TextStyle(fontSize: 18, fontFamily: 'Arial'),
                         children: [
                           TextSpan(
                             text: 'AntiqueSoft\n',
@@ -86,11 +110,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       scaleFactor: scaleFactor,
                     ),
                     SizedBox(height: 12 * scaleFactor),
-                    SizedBox(
-                      width: 366 * scaleFactor,
-                      child: Row(children: []),
-                    ),
-                    SizedBox(height: 11 * scaleFactor),
                     _buildTextFieldWithSvg(
                       labelText: 'User Id',
                       svgPath: 'assets/user.svg',
@@ -108,27 +127,23 @@ class _LoginScreenState extends State<LoginScreen> {
                     SizedBox(
                       width: 366 * scaleFactor,
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Transform.scale(
-                                scale: scaleFactor,
-                                child: Checkbox(
-                                  value: loginViewModel.rememberMe,
-                                  onChanged: (_) => loginViewModel.toggleRememberMe(),
-                                  activeColor: const Color(0xFF172B4D),
-                                ),
-                              ),
-                              Text(
-                                'Remember me',
-                                style: TextStyle(
-                                  decoration: TextDecoration.underline,
-                                  fontSize: 14 * scaleFactor,
-                                  color: const Color(0xFF172B4D),
-                                ),
-                              ),
-                            ],
+                          Transform.scale(
+                            scale: scaleFactor,
+                            child: Checkbox(
+                              value: loginViewModel.rememberMe,
+                              onChanged: (_) => loginViewModel.toggleRememberMe(),
+                              activeColor: const Color(0xFF172B4D),
+                            ),
+                          ),
+                          Text(
+                            'Remember me',
+                            style: TextStyle(
+                              decoration: TextDecoration.underline,
+                              fontSize: 14 * scaleFactor,
+                              color: const Color(0xFF172B4D),
+                            ),
                           ),
                         ],
                       ),
@@ -142,9 +157,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: ElevatedButton(
                               onPressed: () async {
                                 bool success = await loginViewModel.login(context);
-                                if (!success) {
-                                  _showErrorDialog(context);
-                                }
+                                if (!success) _showErrorDialog(context);
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFFF8500),
@@ -178,15 +191,17 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showErrorDialog(BuildContext context) {
-    AwesomeDialog(
+    QuickAlert.show(
       context: context,
-      dialogType: DialogType.error,
-      animType: AnimType.bottomSlide,
+      type: QuickAlertType.error,
       title: 'Login Failed',
-      desc: 'Invalid credentials. Please try again.',
-      btnOkOnPress: () {},
-      btnOkColor: Colors.red,
-    ).show();
+      text: 'Invalid credentials. Please try again.',
+      confirmBtnText: 'OK',
+      confirmBtnColor: Colors.red,
+      onConfirmBtnTap: () {
+        Navigator.of(context).pop();
+      },
+    );
   }
 
   Widget _buildTextFieldWithSvg({

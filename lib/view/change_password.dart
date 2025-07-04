@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:antiquewebemquiry/viewmodel/change_password_view_model.dart';
-import 'package:awesome_dialog/awesome_dialog.dart';
+import 'package:quickalert/quickalert.dart';
 
 class ChangePasswordScreen extends StatelessWidget {
   const ChangePasswordScreen({super.key});
@@ -148,25 +148,26 @@ class ChangePasswordView extends StatelessWidget {
                                         bool success =
                                             await viewModel.updatePassword();
                                         if (context.mounted) {
-                                          AwesomeDialog(
+                                          QuickAlert.show(
                                             context: context,
-                                            dialogType: success
-                                                ? DialogType.success
-                                                : DialogType.error,
-                                            animType: AnimType.scale,
+                                            type: success
+                                                ? QuickAlertType.success
+                                                : QuickAlertType.error,
                                             title: success
                                                 ? 'Success'
                                                 : 'Error',
-                                            desc: success
+                                            text: success
                                                 ? 'Password updated successfully.'
                                                 : viewModel.errorMessage ??
                                                     'Failed to update password.',
-                                            btnOkOnPress: () {
+                                            confirmBtnText: 'OK',
+                                            onConfirmBtnTap: () {
+                                              Navigator.of(context).pop();
                                               if (success) {
                                                 Navigator.pop(context);
                                               }
                                             },
-                                          ).show();
+                                          );
                                         }
                                       },
                                 style: ElevatedButton.styleFrom(

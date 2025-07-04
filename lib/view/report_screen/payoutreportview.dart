@@ -1,7 +1,9 @@
 import 'package:antiquewebemquiry/Constants/baseurl.dart';
 import 'package:antiquewebemquiry/Global/location.dart';
 import 'package:antiquewebemquiry/Global/vendorid.dart';
+import 'package:antiquewebemquiry/model/Payoutreportmainmodel.dart';
 import 'package:antiquewebemquiry/view/date_range.dart';
+import 'package:antiquewebemquiry/view/hamburger.dart';
 import 'package:antiquewebemquiry/view/home_screen/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -11,97 +13,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 // Model for Monthly Payable API response
-class MonthlyPayableResponse {
-  final double retailSales;
-  final double wholesaleSales;
-  final double onlineSales;
-  final double layawaySales;
-  final double returnSales;
-  final double voidSales;
-  final double salesTax;
-  final double total;
-  final double totalSales;
-
-  MonthlyPayableResponse({
-    required this.retailSales,
-    required this.wholesaleSales,
-    required this.onlineSales,
-    required this.layawaySales,
-    required this.returnSales,
-    required this.voidSales,
-    required this.salesTax,
-    required this.total,
-    required this.totalSales,
-  });
-
-  factory MonthlyPayableResponse.fromJson(Map<String, dynamic> json) {
-    return MonthlyPayableResponse(
-      retailSales: (json['retailSales'] ?? 0).toDouble(),
-      wholesaleSales: (json['wholesaleSales'] ?? 0).toDouble(),
-      onlineSales: (json['onlineSales'] ?? 0).toDouble(),
-      layawaySales: (json['layawaySales'] ?? 0).toDouble(),
-      returnSales: (json['returnSales'] ?? 0).toDouble(),
-      voidSales: (json['voidSales'] ?? 0).toDouble(),
-      salesTax: (json['salesTax'] ?? 0).toDouble(),
-      total: (json['total'] ?? 0).toDouble(),
-      totalSales: (json['totalSales'] ?? 0).toDouble(),
-    );
-  }
-}
-
-// Model for Monthly Receivable API response
-class MonthlyReceivableResponse {
-  final int vendorId;
-  final String startDate;
-  final String endDate;
-  final Financials financials;
-
-  MonthlyReceivableResponse({
-    required this.vendorId,
-    required this.startDate,
-    required this.endDate,
-    required this.financials,
-  });
-
-  factory MonthlyReceivableResponse.fromJson(Map<String, dynamic> json) {
-    return MonthlyReceivableResponse(
-      vendorId: json['vendorId'] ?? 0,
-      startDate: json['startDate'] ?? '',
-      endDate: json['endDate'] ?? '',
-      financials: Financials.fromJson(json['financials'] ?? {}),
-    );
-  }
-}
-
-class Financials {
-  final double flatCommissionPercent;
-  final double commissionOnSales;
-  final double creditCardCharges;
-  final double consignmentCommission;
-  final double vendorAdjustments;
-  final double rentalDues;
-
-  Financials({
-    required this.flatCommissionPercent,
-    required this.commissionOnSales,
-    required this.creditCardCharges,
-    required this.consignmentCommission,
-    required this.vendorAdjustments,
-    required this.rentalDues,
-  });
-
-  factory Financials.fromJson(Map<String, dynamic> json) {
-    return Financials(
-      flatCommissionPercent: (json['flatCommissionPercent'] ?? 0).toDouble(),
-      commissionOnSales: (json['commissionOnSales'] ?? 0).toDouble(),
-      creditCardCharges: (json['creditCardCharges'] ?? 0).toDouble(),
-      consignmentCommission: (json['consignmentCommission'] ?? 0).toDouble(),
-      vendorAdjustments: (json['vendorAdjustments'] ?? 0).toDouble(),
-      rentalDues: (json['rentalDues'] ?? 0).toDouble(),
-    );
-  }
-}
-
 class PayoutReportPage extends StatelessWidget {
   const PayoutReportPage({super.key});
 
@@ -263,41 +174,8 @@ class _PayoutReportViewState extends State<PayoutReportView> {
             fontSize: 20,
             color: Colors.black,
           ),
+          textAlign: TextAlign.center,
         ),
-        actions: [
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined, color: Colors.black),
-                onPressed: () {},
-              ),
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                  constraints: const BoxConstraints(
-                    minWidth: 16,
-                    minHeight: 16,
-                  ),
-                  child: const Center(
-                    child: Text(
-                      '1',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
       body: Column(
         children: [

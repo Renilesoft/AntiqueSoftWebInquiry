@@ -1,8 +1,12 @@
 import 'dart:convert';
+import 'package:antiquewebemquiry/Constants/baseurl.dart';
+import 'package:antiquewebemquiry/app_data.dart';
+import 'package:antiquewebemquiry/viewmodel/login_viewmodel.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:awesome_dialog/awesome_dialog.dart';
+import 'package:quickalert/quickalert.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:antiquewebemquiry/view/login_screen.dart';
 import 'change_password.dart';
@@ -76,22 +80,25 @@ class DrawerMenu extends StatelessWidget {
   }
 
   void _showLogoutDialog(BuildContext context) {
-    AwesomeDialog(
+    QuickAlert.show(
       context: context,
-      dialogType: DialogType.warning,
-      animType: AnimType.bottomSlide,
+      type: QuickAlertType.warning,
       title: 'Logout',
-      desc: 'Are you sure you want to logout?',
-      btnCancelText: 'No',
-      btnOkText: 'Yes',
-      btnCancelOnPress: () {},
-      btnOkOnPress: () {
+      text: 'Are you sure you want to logout?',
+      confirmBtnText: 'Yes',
+      cancelBtnText: 'No',
+      showCancelBtn: true,
+      onConfirmBtnTap: () {
+        Navigator.of(context).pop(); // Close the alert
         // Call logout AFTER dialog closes
         Future.delayed(const Duration(milliseconds: 300), () {
           _performLogout(context);
         });
       },
-    ).show();
+      onCancelBtnTap: () {
+        Navigator.of(context).pop(); // Close the alert
+      },
+    );
   }
 
   Future<void> _performLogout(BuildContext context) async {
@@ -100,7 +107,7 @@ class DrawerMenu extends StatelessWidget {
     final username = prefs.getString('username') ?? '';
     String? fcmToken = await FirebaseMessaging.instance.getToken();
 
-    final url = Uri.parse('http://192.168.10.26/Antiquesoft/Home/logout');
+    final url = Uri.parse('$baseurl/Home/logout');
     final headers = {'Content-Type': 'application/json'};
     final body = jsonEncode({
       "location": location,
@@ -111,8 +118,16 @@ class DrawerMenu extends StatelessWidget {
     try {
       final response = await http.post(url, headers: headers, body: body);
       if (response.statusCode == 200) {
-        // Clear user session
-        await prefs.clear();
+        // Stop SignalR connection before logout
+        final appData = Provider.of<AppData>(context, listen: false);
+        
+
+        // Use LoginViewModel's logout method to properly clear session data
+        final loginViewModel = Provider.of<LoginViewModel>(context, listen: false);
+        await loginViewModel.logout();
+
+        // Clear session data while preserving Remember Me data
+        await _clearSessionData();
 
         // Navigate to login screen
         Navigator.pushAndRemoveUntil(
@@ -128,13 +143,48 @@ class DrawerMenu extends StatelessWidget {
     }
   }
 
+  /// Clears session data while preserving Remember Me credentials
+  Future<void> _clearSessionData() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // First, check if Remember Me is enabled and store the credentials temporarily
+    final rememberMe = prefs.getBool('rememberMe') ?? false;
+    String? rememberedStoreCode;
+    String? rememberedUsername;
+    String? rememberedPassword;
+
+    if (rememberMe) {
+      // Preserve Remember Me credentials
+      rememberedStoreCode = prefs.getString('rememberedStoreCode');
+      rememberedUsername = prefs.getString('rememberedUsername');
+      rememberedPassword = prefs.getString('rememberedPassword');
+    }
+
+    // Clear all preferences
+    await prefs.clear();
+
+    // Restore Remember Me data if it was enabled
+    if (rememberMe && 
+        rememberedStoreCode != null && 
+        rememberedUsername != null && 
+        rememberedPassword != null) {
+      await prefs.setBool('rememberMe', true);
+      await prefs.setString('rememberedStoreCode', rememberedStoreCode);
+      await prefs.setString('rememberedUsername', rememberedUsername);
+      await prefs.setString('rememberedPassword', rememberedPassword);
+    }
+  }
+
   void _showErrorDialog(BuildContext context, String message) {
-    AwesomeDialog(
+    QuickAlert.show(
       context: context,
-      dialogType: DialogType.error,
+      type: QuickAlertType.error,
       title: 'Error',
-      desc: message,
-      btnOkOnPress: () {},
-    ).show();
+      text: message,
+      confirmBtnText: 'OK',
+      onConfirmBtnTap: () {
+        Navigator.of(context).pop(); // Close the alert
+      },
+    );
   }
 }

@@ -6,6 +6,7 @@ import 'package:antiquewebemquiry/Services/firebase_options.dart';
 import 'package:antiquewebemquiry/Global/location.dart';
 import 'package:antiquewebemquiry/Global/username.dart';
 import 'package:antiquewebemquiry/Global/vendorid.dart';
+import 'package:antiquewebemquiry/app_data.dart';
 import 'package:antiquewebemquiry/view/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -266,6 +267,7 @@ class _AntiqueSoftAppState extends State<AntiqueSoftApp> {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => LoginViewModel()),
+        ChangeNotifierProvider(create: (_) => AppData()),
       ],
       child: MaterialApp(
         title: 'AntiqueSoft',
