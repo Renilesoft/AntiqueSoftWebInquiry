@@ -4,13 +4,14 @@ import 'package:antiquewebemquiry/Global/location.dart';
 import 'package:antiquewebemquiry/Global/vendorid.dart';
 import 'package:antiquewebemquiry/Global/yearlytotalquantity.dart';
 import 'package:antiquewebemquiry/Global/yearlytotalsales.dart';
+import 'package:antiquewebemquiry/view/home_screen/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 // Dummy classes to represent your actual implementation
 
 class YearlySalesReportPage extends StatefulWidget {
-  const YearlySalesReportPage({super.key});
+  const YearlySalesReportPage({super.key, required void Function() onClose});
 
   @override
   _YearlySalesReportPageState createState() => _YearlySalesReportPageState();
@@ -154,7 +155,7 @@ class _YearlySalesReportPageState extends State<YearlySalesReportPage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF1EDE8),
-      appBar: AppBar(
+        appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: false,
@@ -163,7 +164,12 @@ class _YearlySalesReportPageState extends State<YearlySalesReportPage> {
             padding: const EdgeInsets.only(right: 16.0),
             child: IconButton(
               icon: const Icon(Icons.close, color: Colors.black),
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => HomeScreen()), // 🔁 Replace with your actual Home widget
+                  (Route<dynamic> route) => false,
+                );
+              },
             ),
           ),
         ],

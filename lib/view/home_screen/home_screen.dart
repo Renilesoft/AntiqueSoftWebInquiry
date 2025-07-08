@@ -718,27 +718,17 @@ Future<void> _fetchMonthlySalesData() async {
     }
   }
 
-  void _toggleReport() {
-    if (selectedFilter == 'Yearly') {
-      // Navigate to YearlySalesReport for Yearly filter
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const YearlySalesReportPage(),
-        ),
-      );
+ void _toggleReport() {
+  // Show overlay for all filters (Daily, Monthly, and Yearly)
+  setState(() {
+    _showReport = !_showReport;
+    if (_showReport) {
+      _animationController.forward();
     } else {
-      // Existing toggle report logic for Daily and Monthly
-      setState(() {
-        _showReport = !_showReport;
-        if (_showReport) {
-          _animationController.forward();
-        } else {
-          _animationController.reverse();
-        }
-      });
+      _animationController.reverse();
     }
-  }
+  });
+}
   
   // Handle closing the welcome notification
   void _closeWelcomeNotification() {
@@ -1051,48 +1041,54 @@ Future<void> _fetchMonthlySalesData() async {
               
               // Animated Sales Report Overlay
               if (_showReport)
-                AnimatedBuilder(
-                  animation: _animation,
-                  builder: (context, child) {
-                    return Positioned(
-                      top: _animation.value * MediaQuery.of(context).padding.top,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0, 1),
-                          end: Offset.zero,
-                        ).animate(_animation),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(20),
+              AnimatedBuilder(
+                animation: _animation,
+                builder: (context, child) {
+                  return Positioned(
+                    top: _animation.value * MediaQuery.of(context).padding.top,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, 1),
+                        end: Offset.zero,
+                      ).animate(_animation),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(20),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, -5),
                             ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 10,
-                                offset: const Offset(0, -5),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            children: [
-                              Expanded(
-                                child: SalesReport(
-                                  filterType: selectedFilter,
-                                  onClose: _toggleReport, location: Location.location, vendorId: Vendor.vendorid!
-                                ),
-                              ),
-                            ],
-                          ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Expanded(
+                              child: selectedFilter == 'Yearly'
+                                  ? YearlySalesReportPage(
+                                      onClose: _toggleReport, // Pass close callback
+                                    )
+                                  : SalesReport(
+                                      filterType: selectedFilter,
+                                      onClose: _toggleReport,
+                                      location: Location.location,
+                                      vendorId: Vendor.vendorid!,
+                                    ),
+                            ),
+                          ],
                         ),
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  );
+                },
+              ),
             ],
           ),
         ),
