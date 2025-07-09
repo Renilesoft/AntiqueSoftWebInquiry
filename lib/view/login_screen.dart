@@ -44,149 +44,155 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
     final screenWidth = MediaQuery.of(context).size.width;
     double scaleFactor = screenWidth / 422;
 
+    // 🔄 Clamp scaleFactor for better consistency across screen sizes
+    scaleFactor = scaleFactor.clamp(0.9, 1.2);
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Center(
-        child: SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 22.0 * scaleFactor),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                SizedBox(height: 80 * scaleFactor),
-                Column(
-                  children: [
-                    // ⭐ NEW RESPONSIVE LOGO ⭐
-                    Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20 * scaleFactor),
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          double logoWidth = constraints.maxWidth * 0.28; // 🔹 Changed from 0.45 to 0.32
-                          return Center(
-                            child: SvgPicture.asset(
-                              'assets/logo.svg',
-                              width: logoWidth,
-                              fit: BoxFit.contain,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 0),
-                    RichText(
-                      textAlign: TextAlign.center,
-                      text: const TextSpan(
-                        style: TextStyle(fontSize: 18, fontFamily: 'Arial'),
-                        children: [
-                          TextSpan(
-                            text: 'AntiqueSoft\n',
-                            style: TextStyle(
-                              color: Color(0xFF0C2A5D),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          TextSpan(
-                            text: 'Web Inquiry',
-                            style: TextStyle(
-                              color: Color(0xFF0C2A5D),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 38 * scaleFactor),
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    _buildTextFieldWithSvg(
-                      labelText: isUsingStoreCode ? 'Store Code or Vendor Name' : 'Vendor Name',
-                      svgPath: 'assets/store.svg',
-                      controller: loginViewModel.storeCodeController,
-                      scaleFactor: scaleFactor,
-                    ),
-                    SizedBox(height: 12 * scaleFactor),
-                    _buildTextFieldWithSvg(
-                      labelText: 'User Id',
-                      svgPath: 'assets/user.svg',
-                      controller: loginViewModel.usernameController,
-                      scaleFactor: scaleFactor,
-                    ),
-                    SizedBox(height: 23 * scaleFactor),
-                    _buildPasswordField(
-                      controller: loginViewModel.passwordController,
-                      isPasswordVisible: loginViewModel.isPasswordVisible,
-                      onToggleVisibility: loginViewModel.togglePasswordVisibility,
-                      scaleFactor: scaleFactor,
-                    ),
-                    SizedBox(height: 8 * scaleFactor),
-                    SizedBox(
-                      width: 366 * scaleFactor,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          Transform.scale(
-                            scale: scaleFactor,
-                            child: Checkbox(
-                              value: loginViewModel.rememberMe,
-                              onChanged: (_) => loginViewModel.toggleRememberMe(),
-                              activeColor: const Color(0xFF172B4D),
-                            ),
-                          ),
-                          Text(
-                            'Remember me',
-                            style: TextStyle(
-                              decoration: TextDecoration.underline,
-                              fontSize: 14 * scaleFactor,
-                              color: const Color(0xFF172B4D),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 16 * scaleFactor),
-                    loginViewModel.isLoading
-                        ? const CircularProgressIndicator()
-                        : SizedBox(
-                            width: 173 * scaleFactor,
-                            height: 64 * scaleFactor,
-                            child: ElevatedButton(
-                              onPressed: () async {
-                                bool success = await loginViewModel.login(context);
-                                if (!success) _showErrorDialog(context);
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFFF8500),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(30 * scaleFactor),
-                                ),
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 20 * scaleFactor,
-                                  vertical: 10 * scaleFactor,
-                                ),
-                              ),
-                              child: Text(
-                                'Login',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16 * scaleFactor,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ),
-                  ],
-                ),
-                SizedBox(height: 20 * scaleFactor),
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final shouldScroll = constraints.maxHeight < 600;
+                final content = _buildLoginContent(context, loginViewModel, scaleFactor);
+                return shouldScroll ? SingleChildScrollView(child: content) : content;
+              },
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildLoginContent(BuildContext context, LoginViewModel loginViewModel, double scaleFactor) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        SizedBox(height: 60 * scaleFactor),
+        Column(
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 20 * scaleFactor),
+              child: SvgPicture.asset(
+                'assets/logo.svg',
+                width: 110 * scaleFactor,
+                fit: BoxFit.contain,
+              ),
+            ),
+            const SizedBox(height: 7),
+            RichText(
+              textAlign: TextAlign.center,
+              text: const TextSpan(
+                style: TextStyle(fontSize: 18, fontFamily: 'Arial'),
+                children: [
+                  TextSpan(
+                    text: 'AntiqueSoft\n',
+                    style: TextStyle(
+                      color: Color(0xFF0C2A5D),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  TextSpan(
+                    text: 'Web Inquiry',
+                    style: TextStyle(
+                      color: Color(0xFF0C2A5D),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 32 * scaleFactor),
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _buildTextFieldWithSvg(
+              labelText: isUsingStoreCode ? 'Store Code or Vendor Name' : 'Vendor Name',
+              svgPath: 'assets/store.svg',
+              controller: loginViewModel.storeCodeController,
+              scaleFactor: scaleFactor,
+            ),
+            SizedBox(height: 12 * scaleFactor),
+            _buildTextFieldWithSvg(
+              labelText: 'User Id',
+              svgPath: 'assets/user.svg',
+              controller: loginViewModel.usernameController,
+              scaleFactor: scaleFactor,
+            ),
+            SizedBox(height: 23 * scaleFactor),
+            _buildPasswordField(
+              controller: loginViewModel.passwordController,
+              isPasswordVisible: loginViewModel.isPasswordVisible,
+              onToggleVisibility: loginViewModel.togglePasswordVisibility,
+              scaleFactor: scaleFactor,
+            ),
+            SizedBox(height: 8 * scaleFactor),
+            SizedBox(
+              width: 366 * scaleFactor,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  Transform.scale(
+                    scale: scaleFactor,
+                    child: Checkbox(
+                      value: loginViewModel.rememberMe,
+                      onChanged: (_) => loginViewModel.toggleRememberMe(),
+                      activeColor: const Color(0xFF172B4D),
+                    ),
+                  ),
+                  Text(
+                    'Remember me',
+                    style: TextStyle(
+                      decoration: TextDecoration.underline,
+                      fontSize: 14 * scaleFactor,
+                      color: const Color(0xFF172B4D),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 16 * scaleFactor),
+            loginViewModel.isLoading
+                ? const CircularProgressIndicator()
+                : SizedBox(
+                    width: 173 * scaleFactor,
+                    height: 64 * scaleFactor,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        bool success = await loginViewModel.login(context);
+                        if (!success) _showErrorDialog(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF8500),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30 * scaleFactor),
+                        ),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 20 * scaleFactor,
+                          vertical: 10 * scaleFactor,
+                        ),
+                      ),
+                      child: Text(
+                        'Login',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16 * scaleFactor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+          ],
+        ),
+        SizedBox(height: 20 * scaleFactor),
+      ],
     );
   }
 
