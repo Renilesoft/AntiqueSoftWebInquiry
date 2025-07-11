@@ -168,22 +168,30 @@ class _AntiqueSoftAppState extends State<AntiqueSoftApp> {
       }
 
       // Listen for foreground messages
-      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        // ignore: avoid_print
-        print('Foreground message received: ${message.notification?.title}');
-        // ignore: avoid_print
-        print('Platform: ${Platform.isIOS ? 'iOS' : 'Android'}');
-        
-        try {
-          // For iOS, the system notification should now appear due to 
-          // setForegroundNotificationPresentationOptions above
-          // But we can also show local notification as backup
-          notificationService.showNotification(message);
-        } catch (e) {
-          // ignore: avoid_print
-          print('Failed to show notification: $e');
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+      // ignore: avoid_print
+      print('Foreground message received: ${message.notification?.title}');
+      // ignore: avoid_print
+      print('Platform: ${Platform.isIOS ? 'iOS' : 'Android'}');
+
+      try {
+        // Only show local notification manually when app is in foreground.
+        if (Platform.isAndroid) {
+          // On Android, Firebase automatically displays notification in background,
+          // so only show manually when app is in foreground.
+          if (message.notification != null) {
+            await notificationService.showNotification(message);
+          }
+        } else if (Platform.isIOS) {
+          // iOS doesn't show notification automatically in foreground
+          // even with presentation options. So show manually.
+          await notificationService.showNotification(message);
         }
-      });
+      } catch (e) {
+        // ignore: avoid_print
+        print('Failed to show notification: $e');
+      }
+    });
 
       // Listen for when user taps notification while app is in background
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {

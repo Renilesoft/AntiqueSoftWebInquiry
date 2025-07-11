@@ -111,7 +111,7 @@ class _SalesReportState extends State<SalesReport> {
         break;
       
       default:
-        startDate = DateTime(2020, 1, 1);
+        startDate = DateTime(2010, 1, 1);
         endDate = DateTime(2026, 12, 31);
     }
     
@@ -163,8 +163,11 @@ Future<void> _fetchSalesData() async {
       url = '$baseurl/Home/MonthlySales?location=${widget.location}&vendorId=${widget.vendorId}&startMonth=$startMonth&endMonth=$endMonth';
     } else {
       // Use Daily Sales API endpoint for Daily and other filter types
-      final String formattedStartDate = DateFormat('yyyy-MM-dd').format(startDate!);
-      final String formattedEndDate = DateFormat('yyyy-MM-dd').format(endDate!);
+      final DateTime adjustedStartDate = DateTime(startDate!.year, startDate!.month, startDate!.day, 0, 0, 0);
+      final DateTime adjustedEndDate = DateTime(endDate!.year, endDate!.month, endDate!.day, 23, 59, 59);
+
+      final String formattedStartDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(adjustedStartDate);
+      final String formattedEndDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(adjustedEndDate);
       
       url = '$baseurl/Home/DailySales?location=${widget.location}&vendorId=${widget.vendorId}&startDate=$formattedStartDate&endDate=$formattedEndDate';
     }
