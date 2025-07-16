@@ -1,67 +1,10 @@
 import 'package:antiquewebemquiry/Constants/baseurl.dart';
 import 'package:antiquewebemquiry/Global/sales.dart';
+import 'package:antiquewebemquiry/model/sales_model.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-
-// Model classes for API response
-class SalesData {
-  final DateTime date;
-  final String description;
-  final int quantity;
-  final double price;
-  final double netPrice;
-
-  SalesData({
-    required this.date,
-    required this.description,
-    required this.quantity,
-    required this.price,
-    required this.netPrice,
-  });
-
-  factory SalesData.fromJson(Map<String, dynamic> json) {
-    return SalesData(
-      date: DateTime.parse(json['date']),
-      description: json['description'] ?? '',
-      quantity: json['quantity'] ?? 0,
-      price: (json['price'] ?? 0).toDouble(),
-      netPrice: (json['netPrice'] ?? 0).toDouble(),
-    );
-  }
-}
-
-class SalesResponse {
-  final int? vendorId;
-  final DateTime? startDate;
-  final DateTime? endDate;
-  final int totalItems;
-  final double totalSales;
-  final List<SalesData> salesData;
-
-  SalesResponse({
-    this.vendorId,
-    this.startDate,
-    this.endDate,
-    required this.totalItems,
-    required this.totalSales,
-    required this.salesData,
-  });
-
-  factory SalesResponse.fromJson(Map<String, dynamic> json) {
-    return SalesResponse(
-      vendorId: json['vendorId'],
-      startDate: json['startDate'] != null ? DateTime.parse(json['startDate']) : null,
-      endDate: json['endDate'] != null ? DateTime.parse(json['endDate']) : null,
-      totalItems: json['totalItems'] ?? 0,
-      totalSales: (json['totalSales'] ?? 0).toDouble(),
-      salesData: (json['salesData'] as List<dynamic>?)
-          ?.map((item) => SalesData.fromJson(item))
-          .toList() ?? [],
-    );
-  }
-}
 
 class SalesReport extends StatefulWidget {
   final String filterType;
@@ -91,8 +34,14 @@ class _SalesReportState extends State<SalesReport> {
   bool isLoading = false;
   String? errorMessage;
   
-  // API configuration
- 
+  // Helper method to format currency properly
+  String _formatCurrency(double amount) {
+    if (amount < 0) {
+      return '-\$${(-amount).toStringAsFixed(2)}';
+    } else {
+      return '\$${amount.toStringAsFixed(2)}';
+    }
+  }
 
   @override
   void initState() {
@@ -525,7 +474,7 @@ Future<void> _fetchSalesData() async {
               ),
               _buildTotalItem(
                 'Total Sales', 
-                '\$${salesResponse?.totalSales.toStringAsFixed(2) ?? '0.00'}', 
+                _formatCurrency(salesResponse?.totalSales ?? 0.0), 
                 const Color(0xFF00A81C)
               ),
             ],
@@ -694,7 +643,7 @@ Future<void> _fetchSalesData() async {
                           FittedBox(
                             fit: BoxFit.scaleDown,
                             child: Text(
-                              '\$${data.price.toStringAsFixed(2)}',
+                              _formatCurrency(data.price),
                               style: TextStyle(
                                 fontSize: isTablet ? 15 : 13,
                                 fontWeight: FontWeight.bold,
@@ -723,7 +672,7 @@ Future<void> _fetchSalesData() async {
                           FittedBox(
                             fit: BoxFit.scaleDown,
                             child: Text(
-                              '\$${data.netPrice.toStringAsFixed(2)}',
+                              _formatCurrency(data.netPrice),
                               style: TextStyle(
                                 fontSize: isTablet ? 15 : 13,
                                 fontWeight: FontWeight.bold,

@@ -197,23 +197,23 @@ class ChangePasswordView extends StatelessWidget {
                                           color: Colors.white,
                                           fontSize: 14,
                                         ),
-                                      ),
-                              ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                  );
-                },
+                      );
+                    },
+                  ),
+                ),
               ),
             ),
           ),
-        ),
-      ),
-    );
+        );
+     }
   }
-}
 
 class PasswordField extends StatefulWidget {
   final String label;

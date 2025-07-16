@@ -104,6 +104,14 @@ class _PayoutReportViewState extends State<PayoutReportView> {
     }
   }
 
+  String formatCurrency(double amount) {
+
+    final isNegative = amount < 0;
+    final value = amount.abs().toStringAsFixed(2);
+    return isNegative ? '-\$${value}' : '\$${value}';
+
+  }
+
   Future<MonthlyPayableResponse> _fetchMonthlyPayable({
     required String location,
     required int vendorId,
@@ -298,13 +306,13 @@ class _PayoutReportViewState extends State<PayoutReportView> {
               ],
             ),
             const SizedBox(height: 16),
-            _buildPayableRow('Retail Sales', '\$${data.retailSales.toStringAsFixed(2)}'),
-            _buildPayableRow('Wholesales', '\$${data.wholesaleSales.toStringAsFixed(2)}'),
-            _buildPayableRow('Online Sales', '\$${data.onlineSales.toStringAsFixed(2)}'),
-            _buildPayableRow('Layaway Sales', '\$${data.layawaySales.toStringAsFixed(2)}'),
-            _buildPayableRow('Sales Tax', '\$${data.salesTax.toStringAsFixed(2)}'),
+            _buildPayableRow('Retail Sales', formatCurrency(data.retailSales)),
+            _buildPayableRow('Wholesales', formatCurrency(data.wholesaleSales)),
+            _buildPayableRow('Online Sales', formatCurrency(data.onlineSales)),
+            _buildPayableRow('Layaway Sales', formatCurrency(data.layawaySales)),
+            _buildPayableRow('Sales Tax', formatCurrency(data.salesTax)),
             const Divider(height: 24),
-            _buildPayable('Total Sales', '\$${firstTotalSales.toStringAsFixed(2)}', isBold: true),
+            _buildPayable('Total Sales', formatCurrency(firstTotalSales), isBold: true),
             const Divider(height: 24),
             const Text(
               'Less',
@@ -315,10 +323,10 @@ class _PayoutReportViewState extends State<PayoutReportView> {
               ),
             ),
             const SizedBox(height: 8),
-            _buildPayableRow('Sales Returns', '\$${data.returnSales.toStringAsFixed(2)}'),
-            _buildPayableRow('Voids', '\$${data.voidSales.toStringAsFixed(2)}'),
+            _buildPayableRow('Sales Returns', formatCurrency(data.returnSales)),
+            _buildPayableRow('Voids', formatCurrency(data.voidSales)),
             const Divider(height: 24),
-            _buildPayable('Total Sales', '\$${finalTotal.toStringAsFixed(2)}', isBold: true),
+            _buildPayable('Total Sales', formatCurrency(finalTotal), isBold: true),
           ],
         ),
       ),
@@ -386,7 +394,7 @@ class _PayoutReportViewState extends State<PayoutReportView> {
             const Divider(height: 24),
             _buildPayable('Total Due', '\$${totalDue.toStringAsFixed(2)}', isBold: true),
             const Divider(height: 24),
-            _buildAutoDetect('Total Sales - Total Due', '\$${finalAmount.toStringAsFixed(2)}', isBold: true),
+            _buildAutoDetect('Total Sales - Total Due', formatCurrency(finalAmount), isBold: true),
             const Divider(height: 24),
           ],
         ),
