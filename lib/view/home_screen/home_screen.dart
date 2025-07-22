@@ -1073,7 +1073,7 @@ Future<void> _fetchMonthlySalesData() async {
                             Expanded(
                               child: selectedFilter == 'Yearly'
                                   ? YearlySalesReportPage(
-                                      onClose: _toggleReport, // Pass close callback
+                                       // Pass close callback
                                     )
                                   : SalesReport(
                                       filterType: selectedFilter,

@@ -3,7 +3,6 @@ import 'package:antiquewebemquiry/Global/sales.dart';
 import 'package:antiquewebemquiry/Global/yearlytotalquantity.dart';
 import 'package:antiquewebemquiry/Global/yearlytotalsales.dart';
 import 'package:antiquewebemquiry/Services/firebase_options.dart';
-import 'package:antiquewebemquiry/Global/location.dart';
 import 'package:antiquewebemquiry/Global/username.dart';
 import 'package:antiquewebemquiry/Global/vendorid.dart';
 import 'package:antiquewebemquiry/app_data.dart';
@@ -33,7 +32,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Location.loadlocation();
+
   await Username.loadusername();
   await Vendor.loadVendorId();
   await TotalSales.load(); // loads saved double into TotalSales.totalsales
