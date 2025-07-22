@@ -898,7 +898,7 @@ Future<void> _fetchMonthlySalesData() async {
                                       Row(
                                         children: [
                                           Text(
-                                            'Hi ${_getFirstName(vendorName)}',
+                                            'Hello ${_getFirstName(vendorName)}',
                                             style: const TextStyle(
                                               fontSize: 24,
                                               fontWeight: FontWeight.bold,
