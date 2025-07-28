@@ -214,7 +214,7 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
                 letterSpacing: 0.5,
               ),
             ),
-            SizedBox(height: screenWidth < 600 ? 2 : 6),
+            SizedBox(height: screenWidth < 600 ? 1 : 2),
             Text(
               'Web Inquiry',
               style: TextStyle(
