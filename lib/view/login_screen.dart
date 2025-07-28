@@ -55,11 +55,50 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
   Widget build(BuildContext context) {
     final loginViewModel = context.watch<LoginViewModel>();
     final screenSize = MediaQuery.of(context).size;
+    final screenWidth = screenSize.width;
+    final screenHeight = screenSize.height;
     
-    // Better responsive scaling approach
-    double getResponsiveWidth() {
-      if (screenSize.width > 600) return 400; // Tablet/Desktop
-      return screenSize.width * 0.85; // Mobile
+    // Comprehensive responsive breakpoints
+    bool isMobile = screenWidth < 600;
+    bool isTablet = screenWidth >= 600 && screenWidth < 1024;
+    
+    // Dynamic sizing based on device type
+    double getResponsiveValue({
+      required double mobile,
+      required double tablet,
+      required double desktop,
+    }) {
+      if (isMobile) return mobile;
+      if (isTablet) return tablet;
+      return desktop;
+    }
+    
+    // Container width that maintains aspect ratio
+    double getContainerWidth() {
+      if (isMobile) {
+        return screenWidth * 0.9; // 90% of screen width
+      } else if (isTablet) {
+        return screenWidth * 0.6; // 60% for tablets
+      } else {
+        return 450; // Fixed width for desktop
+      }
+    }
+    
+    // Responsive padding
+    double getHorizontalPadding() {
+      return getResponsiveValue(
+        mobile: 20.0,
+        tablet: 40.0,
+        desktop: 60.0,
+      );
+    }
+    
+    double getVerticalPadding() {
+      return getResponsiveValue(
+        mobile: 20.0,
+        tablet: 40.0,
+        desktop: 30.0,
+      );
     }
 
     return Scaffold(
@@ -67,27 +106,45 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+            padding: EdgeInsets.symmetric(
+              horizontal: getHorizontalPadding(),
+              vertical: getVerticalPadding(),
+            ),
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxWidth: getResponsiveWidth(),
+                maxWidth: getContainerWidth(),
+                minHeight: screenHeight * 0.7, // Minimum height for proper centering
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 40),
-                  
-                  // ⭐ IMPROVED LOGO SECTION ⭐
-                  _buildLogoSection(),
-                  
-                  const SizedBox(height: 50),
-                  
-                  // Form fields with better spacing
-                  _buildFormSection(loginViewModel),
-                  
-                  const SizedBox(height: 30),
-                ],
+              child: IntrinsicHeight(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    SizedBox(height: getResponsiveValue(
+                      mobile: 20,
+                      tablet: 40,
+                      desktop: 60,
+                    )),
+                    
+                    // ⭐ RESPONSIVE LOGO SECTION ⭐
+                    _buildLogoSection(),
+                    
+                    SizedBox(height: getResponsiveValue(
+                      mobile: 40,
+                      tablet: 60,
+                      desktop: 80,
+                    )),
+                    
+                    // Form fields with responsive spacing
+                    _buildFormSection(loginViewModel),
+                    
+                    SizedBox(height: getResponsiveValue(
+                      mobile: 20,
+                      tablet: 30,
+                      desktop: 40,
+                    )),
+                  ],
+                ),
               ),
             ),
           ),
@@ -97,20 +154,42 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
   }
 
   Widget _buildLogoSection() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    // Responsive logo size
+    double getLogoSize() {
+      if (screenWidth < 600) return 100; // Mobile
+      if (screenWidth < 1024) return 140; // Tablet
+      return 160; // Desktop
+    }
+    
+    // Responsive title font sizes
+    double getMainTitleSize() {
+      if (screenWidth < 600) return 24; // Mobile
+      if (screenWidth < 1024) return 32; // Tablet
+      return 36; // Desktop
+    }
+    
+    double getSubTitleSize() {
+      if (screenWidth < 600) return 16; // Mobile
+      if (screenWidth < 1024) return 20; // Tablet
+      return 22; // Desktop
+    }
+    
     return Column(
       children: [
-        // Logo with fixed, appropriate size
+        // Responsive logo with container
         Container(
-          width: 120,
-          height: 120,
-          padding: const EdgeInsets.all(16),
+          width: getLogoSize(),
+          height: getLogoSize(),
+          padding: EdgeInsets.all(screenWidth < 600 ? 12 : 16),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(screenWidth < 600 ? 16 : 20),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
+                blurRadius: screenWidth < 600 ? 8 : 12,
                 offset: const Offset(0, 2),
               ),
             ],
@@ -121,27 +200,27 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
           ),
         ),
         
-        const SizedBox(height: 24),
+        SizedBox(height: screenWidth < 600 ? 20 : 28),
         
-        // App title with better typography
-        const Column(
+        // Responsive app title
+        Column(
           children: [
             Text(
               'AntiqueSoft',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: getMainTitleSize(),
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF0C2A5D),
-                letterSpacing: 0.5,
+                color: const Color(0xFF0C2A5D),
+                letterSpacing: -0.5,
               ),
             ),
-            SizedBox(height: 4),
+            SizedBox(height: screenWidth < 600 ? 2 : 6),
             Text(
               'Web Inquiry',
               style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF0C2A5D),
+                fontSize: getSubTitleSize(),
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFF0C2A5D).withOpacity(0.8),
                 letterSpacing: 0.5,
               ),
             ),
@@ -152,6 +231,27 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
   }
 
   Widget _buildFormSection(LoginViewModel loginViewModel) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    // Responsive spacing
+    double getFieldSpacing() {
+      if (screenWidth < 600) return 16; // Mobile
+      if (screenWidth < 1024) return 24; // Tablet
+      return 28; // Desktop
+    }
+    
+    double getCheckboxSpacing() {
+      if (screenWidth < 600) return 12; // Mobile
+      if (screenWidth < 1024) return 16; // Tablet
+      return 20; // Desktop
+    }
+    
+    double getButtonSpacing() {
+      if (screenWidth < 600) return 28; // Mobile
+      if (screenWidth < 1024) return 36; // Tablet
+      return 44; // Desktop
+    }
+    
     return Column(
       children: [
         _buildTextFieldWithSvg(
@@ -161,7 +261,7 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
           focusNode: _storeCodeFocusNode,
         ),
         
-        const SizedBox(height: 20),
+        SizedBox(height: getFieldSpacing()),
         
         _buildTextFieldWithSvg(
           labelText: 'User Id',
@@ -170,7 +270,7 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
           focusNode: _userIdFocusNode,
         ),
         
-        const SizedBox(height: 20),
+        SizedBox(height: getFieldSpacing()),
         
         _buildPasswordField(
           controller: loginViewModel.passwordController,
@@ -179,14 +279,14 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
           focusNode: _passwordFocusNode,
         ),
         
-        const SizedBox(height: 16),
+        SizedBox(height: getCheckboxSpacing()),
         
-        // Remember me checkbox
+        // Responsive remember me checkbox
         Row(
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
             Transform.scale(
-              scale: 1.1,
+              scale: screenWidth < 600 ? 1.0 : 1.2,
               child: Checkbox(
                 value: loginViewModel.rememberMe,
                 onChanged: (_) => loginViewModel.toggleRememberMe(),
@@ -196,11 +296,11 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: screenWidth < 600 ? 6 : 10),
             Text(
               'Remember me',
               style: TextStyle(
-                fontSize: 15,
+                fontSize: screenWidth < 600 ? 14 : 16,
                 color: const Color(0xFF172B4D),
                 fontWeight: FontWeight.w500,
               ),
@@ -208,16 +308,17 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
           ],
         ),
         
-        const SizedBox(height: 32),
+        SizedBox(height: getButtonSpacing()),
         
-        // Login button
+        // Responsive login button
         loginViewModel.isLoading
-            ? const CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF8500)),
+            ? CircularProgressIndicator(
+                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFF8500)),
+                strokeWidth: screenWidth < 600 ? 3.0 : 4.0,
               )
             : SizedBox(
                 width: double.infinity,
-                height: 56,
+                height: screenWidth < 600 ? 52 : 60,
                 child: ElevatedButton(
                   onPressed: () async {
                     bool success = await loginViewModel.login(context);
@@ -228,14 +329,14 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
                     elevation: 2,
                     shadowColor: const Color(0xFFFF8500).withOpacity(0.3),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
+                      borderRadius: BorderRadius.circular(screenWidth < 600 ? 26 : 30),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Login',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 18,
+                      fontSize: screenWidth < 600 ? 16 : 18,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.5,
                     ),
@@ -271,58 +372,90 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
       builder: (context, child) {
         final bool isFocused = focusNode.hasFocus;
         final Color textColor = isFocused ? const Color(0xFFFF8500) : const Color(0xFF172B4D);
+        final screenWidth = MediaQuery.of(context).size.width;
+        
+        // Responsive text field dimensions
+        double getFieldHeight() {
+          if (screenWidth < 600) return 56; // Mobile
+          if (screenWidth < 1024) return 64; // Tablet
+          return 68; // Desktop
+        }
+        
+        double getTextSize() {
+          if (screenWidth < 600) return 15; // Mobile
+          if (screenWidth < 1024) return 16; // Tablet
+          return 17; // Desktop
+        }
+        
+        double getLabelSize() {
+          if (screenWidth < 600) return 14; // Mobile
+          if (screenWidth < 1024) return 15; // Tablet
+          return 16; // Desktop
+        }
+        
+        double getIconSize() {
+          if (screenWidth < 600) return 18; // Mobile
+          if (screenWidth < 1024) return 20; // Tablet
+          return 22; // Desktop
+        }
+        
+        double getBorderRadius() {
+          if (screenWidth < 600) return 10; // Mobile
+          if (screenWidth < 1024) return 12; // Tablet
+          return 14; // Desktop
+        }
         
         return SizedBox(
-          height: 64,
+          height: getFieldHeight(),
           child: TextField(
             controller: controller,
             focusNode: focusNode,
             cursorColor: const Color(0xFFFF8500),
             style: TextStyle(
               color: textColor,
-              fontSize: 16,
+              fontSize: getTextSize(),
               fontWeight: FontWeight.w500,
             ),
             decoration: InputDecoration(
               labelText: labelText,
               labelStyle: TextStyle(
                 color: const Color(0xFF172B4D).withOpacity(0.7),
-                fontSize: 15,
+                fontSize: getLabelSize(),
                 fontWeight: FontWeight.w500,
               ),
-              floatingLabelStyle: const TextStyle(
-                color: Color(0xFFFF8500),
-                fontSize: 15,
+              floatingLabelStyle: TextStyle(
+                color: const Color(0xFFFF8500),
+                fontSize: getLabelSize(),
                 fontWeight: FontWeight.w600,
               ),
               filled: true,
               fillColor: Colors.grey.shade50,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 20,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: screenWidth < 600 ? 16 : 20,
+                vertical: screenWidth < 600 ? 16 : 20,
               ),
               suffixIcon: Container(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(screenWidth < 600 ? 14 : 16),
                 child: SvgPicture.asset(
                   svgPath,
-                  width: 20,
-                  height: 20,
-                  colorFilter: ColorFilter.mode(
-                    const Color(0xFFFF8500),
+                  width: getIconSize(),
+                  height: getIconSize(),
+                  colorFilter: const ColorFilter.mode(
+                    Color(0xFFFF8500),
                     BlendMode.srcIn,
                   ),
                 ),
               ),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(getBorderRadius()),
                 borderSide: BorderSide(color: Colors.grey.shade300),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(getBorderRadius()),
                 borderSide: BorderSide(color: Colors.grey.shade300),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(getBorderRadius()),
                 borderSide: const BorderSide(
                   color: Color(0xFFFF8500),
                   width: 2,
@@ -346,9 +479,41 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
       builder: (context, child) {
         final bool isFocused = focusNode.hasFocus;
         final Color textColor = isFocused ? const Color(0xFFFF8500) : const Color(0xFF172B4D);
+        final screenWidth = MediaQuery.of(context).size.width;
+        
+        // Responsive password field dimensions
+        double getFieldHeight() {
+          if (screenWidth < 600) return 56; // Mobile
+          if (screenWidth < 1024) return 64; // Tablet
+          return 68; // Desktop
+        }
+        
+        double getTextSize() {
+          if (screenWidth < 600) return 15; // Mobile
+          if (screenWidth < 1024) return 16; // Tablet
+          return 17; // Desktop
+        }
+        
+        double getLabelSize() {
+          if (screenWidth < 600) return 14; // Mobile
+          if (screenWidth < 1024) return 15; // Tablet
+          return 16; // Desktop
+        }
+        
+        double getIconSize() {
+          if (screenWidth < 600) return 22; // Mobile
+          if (screenWidth < 1024) return 24; // Tablet
+          return 26; // Desktop
+        }
+        
+        double getBorderRadius() {
+          if (screenWidth < 600) return 10; // Mobile
+          if (screenWidth < 1024) return 12; // Tablet
+          return 14; // Desktop
+        }
         
         return SizedBox(
-          height: 64,
+          height: getFieldHeight(),
           child: TextField(
             controller: controller,
             focusNode: focusNode,
@@ -356,30 +521,30 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
             cursorColor: const Color(0xFFFF8500),
             style: TextStyle(
               color: textColor,
-              fontSize: 16,
+              fontSize: getTextSize(),
               fontWeight: FontWeight.w500,
             ),
             decoration: InputDecoration(
               labelText: 'Password',
               labelStyle: TextStyle(
                 color: const Color(0xFF172B4D).withOpacity(0.7),
-                fontSize: 15,
+                fontSize: getLabelSize(),
                 fontWeight: FontWeight.w500,
               ),
-              floatingLabelStyle: const TextStyle(
-                color: Color(0xFFFF8500),
-                fontSize: 15,
+              floatingLabelStyle: TextStyle(
+                color: const Color(0xFFFF8500),
+                fontSize: getLabelSize(),
                 fontWeight: FontWeight.w600,
               ),
               filled: true,
               fillColor: Colors.grey.shade50,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 20,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: screenWidth < 600 ? 16 : 20,
+                vertical: screenWidth < 600 ? 16 : 20,
               ),
               suffixIcon: IconButton(
-                iconSize: 24,
-                padding: const EdgeInsets.all(16),
+                iconSize: getIconSize(),
+                padding: EdgeInsets.all(screenWidth < 600 ? 14 : 16),
                 icon: Icon(
                   isPasswordVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
                   color: const Color(0xFFFF8500),
@@ -387,15 +552,15 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
                 onPressed: onToggleVisibility,
               ),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(getBorderRadius()),
                 borderSide: BorderSide(color: Colors.grey.shade300),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(getBorderRadius()),
                 borderSide: BorderSide(color: Colors.grey.shade300),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(getBorderRadius()),
                 borderSide: const BorderSide(
                   color: Color(0xFFFF8500),
                   width: 2,
