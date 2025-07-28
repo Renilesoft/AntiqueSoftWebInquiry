@@ -29,6 +29,11 @@ class _LoginScreenContent extends StatefulWidget {
 
 class _LoginScreenContentState extends State<_LoginScreenContent> {
   bool isUsingStoreCode = true;
+  
+  // Focus nodes to track focus state
+  final FocusNode _storeCodeFocusNode = FocusNode();
+  final FocusNode _userIdFocusNode = FocusNode();
+  final FocusNode _passwordFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -39,154 +44,205 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
   }
 
   @override
+  void dispose() {
+    _storeCodeFocusNode.dispose();
+    _userIdFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final loginViewModel = context.watch<LoginViewModel>();
-    final screenWidth = MediaQuery.of(context).size.width;
-    double scaleFactor = screenWidth / 422;
+    final screenSize = MediaQuery.of(context).size;
+    
+    // Better responsive scaling approach
+    double getResponsiveWidth() {
+      if (screenSize.width > 600) return 400; // Tablet/Desktop
+      return screenSize.width * 0.85; // Mobile
+    }
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Center(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 22.0 * scaleFactor),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                SizedBox(height: 80 * scaleFactor),
-                Column(
-                  children: [
-                    // ⭐ NEW RESPONSIVE LOGO ⭐
-                    Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20 * scaleFactor),
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          double logoWidth = constraints.maxWidth * 0.45;
-                          return Center(
-                            child: SvgPicture.asset(
-                              'assets/logo.svg',
-                              width: logoWidth,
-                              fit: BoxFit.contain,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 7),
-                    RichText(
-                      textAlign: TextAlign.center,
-                      text: const TextSpan(
-                        style: TextStyle(fontSize: 18, fontFamily: 'Arial'),
-                        children: [
-                          TextSpan(
-                            text: 'AntiqueSoft\n',
-                            style: TextStyle(
-                              color: Color(0xFF0C2A5D),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          TextSpan(
-                            text: 'Web Inquiry',
-                            style: TextStyle(
-                              color: Color(0xFF0C2A5D),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 38 * scaleFactor),
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    _buildTextFieldWithSvg(
-                      labelText: isUsingStoreCode ? 'Store Code or Vendor Name' : 'Vendor Name',
-                      svgPath: 'assets/store.svg',
-                      controller: loginViewModel.storeCodeController,
-                      scaleFactor: scaleFactor,
-                    ),
-                    SizedBox(height: 12 * scaleFactor),
-                    _buildTextFieldWithSvg(
-                      labelText: 'User Id',
-                      svgPath: 'assets/user.svg',
-                      controller: loginViewModel.usernameController,
-                      scaleFactor: scaleFactor,
-                    ),
-                    SizedBox(height: 23 * scaleFactor),
-                    _buildPasswordField(
-                      controller: loginViewModel.passwordController,
-                      isPasswordVisible: loginViewModel.isPasswordVisible,
-                      onToggleVisibility: loginViewModel.togglePasswordVisibility,
-                      scaleFactor: scaleFactor,
-                    ),
-                    SizedBox(height: 8 * scaleFactor),
-                    SizedBox(
-                      width: 366 * scaleFactor,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          Transform.scale(
-                            scale: scaleFactor,
-                            child: Checkbox(
-                              value: loginViewModel.rememberMe,
-                              onChanged: (_) => loginViewModel.toggleRememberMe(),
-                              activeColor: const Color(0xFF172B4D),
-                            ),
-                          ),
-                          Text(
-                            'Remember me',
-                            style: TextStyle(
-                              decoration: TextDecoration.underline,
-                              fontSize: 14 * scaleFactor,
-                              color: const Color(0xFF172B4D),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 16 * scaleFactor),
-                    loginViewModel.isLoading
-                        ? const CircularProgressIndicator()
-                        : SizedBox(
-                            width: 173 * scaleFactor,
-                            height: 64 * scaleFactor,
-                            child: ElevatedButton(
-                              onPressed: () async {
-                                bool success = await loginViewModel.login(context);
-                                if (!success) _showErrorDialog(context);
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFFF8500),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(30 * scaleFactor),
-                                ),
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 20 * scaleFactor,
-                                  vertical: 10 * scaleFactor,
-                                ),
-                              ),
-                              child: Text(
-                                'Login',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16 * scaleFactor,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ),
-                  ],
-                ),
-                SizedBox(height: 20 * scaleFactor),
-              ],
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: getResponsiveWidth(),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 40),
+                  
+                  // ⭐ IMPROVED LOGO SECTION ⭐
+                  _buildLogoSection(),
+                  
+                  const SizedBox(height: 50),
+                  
+                  // Form fields with better spacing
+                  _buildFormSection(loginViewModel),
+                  
+                  const SizedBox(height: 30),
+                ],
+              ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildLogoSection() {
+    return Column(
+      children: [
+        // Logo with fixed, appropriate size
+        Container(
+          width: 120,
+          height: 120,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: SvgPicture.asset(
+            'assets/logo.svg',
+            fit: BoxFit.contain,
+          ),
+        ),
+        
+        const SizedBox(height: 24),
+        
+        // App title with better typography
+        const Column(
+          children: [
+            Text(
+              'AntiqueSoft',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0C2A5D),
+                letterSpacing: 0.5,
+              ),
+            ),
+            SizedBox(height: 4),
+            Text(
+              'Web Inquiry',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0C2A5D),
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFormSection(LoginViewModel loginViewModel) {
+    return Column(
+      children: [
+        _buildTextFieldWithSvg(
+          labelText: isUsingStoreCode ? 'Store Code or Vendor Name' : 'Vendor Name',
+          svgPath: 'assets/store.svg',
+          controller: loginViewModel.storeCodeController,
+          focusNode: _storeCodeFocusNode,
+        ),
+        
+        const SizedBox(height: 20),
+        
+        _buildTextFieldWithSvg(
+          labelText: 'User Id',
+          svgPath: 'assets/user.svg',
+          controller: loginViewModel.usernameController,
+          focusNode: _userIdFocusNode,
+        ),
+        
+        const SizedBox(height: 20),
+        
+        _buildPasswordField(
+          controller: loginViewModel.passwordController,
+          isPasswordVisible: loginViewModel.isPasswordVisible,
+          onToggleVisibility: loginViewModel.togglePasswordVisibility,
+          focusNode: _passwordFocusNode,
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // Remember me checkbox
+        Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Transform.scale(
+              scale: 1.1,
+              child: Checkbox(
+                value: loginViewModel.rememberMe,
+                onChanged: (_) => loginViewModel.toggleRememberMe(),
+                activeColor: const Color(0xFF172B4D),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Remember me',
+              style: TextStyle(
+                fontSize: 15,
+                color: const Color(0xFF172B4D),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        
+        const SizedBox(height: 32),
+        
+        // Login button
+        loginViewModel.isLoading
+            ? const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF8500)),
+              )
+            : SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    bool success = await loginViewModel.login(context);
+                    if (!success) _showErrorDialog(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF8500),
+                    elevation: 2,
+                    shadowColor: const Color(0xFFFF8500).withOpacity(0.3),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                  ),
+                  child: const Text(
+                    'Login',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ),
+      ],
     );
   }
 
@@ -208,57 +264,74 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
     required String labelText,
     required String svgPath,
     required TextEditingController controller,
-    required double scaleFactor,
+    required FocusNode focusNode,
   }) {
-    return SizedBox(
-      width: 366 * scaleFactor,
-      height: 60 * scaleFactor,
-      child: TextField(
-        controller: controller,
-        cursorColor: const Color(0xFF172B4D),
-        style: TextStyle(
-          color: const Color(0xFF172B4D),
-          fontSize: 14 * scaleFactor,
-        ),
-        decoration: InputDecoration(
-          labelText: labelText,
-          labelStyle: TextStyle(
-            color: const Color(0xFF172B4D),
-            fontSize: 14 * scaleFactor,
-          ),
-          floatingLabelStyle: TextStyle(
-            color: Colors.grey,
-            fontSize: 14 * scaleFactor,
-          ),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: EdgeInsets.symmetric(
-            horizontal: 16 * scaleFactor,
-            vertical: 12 * scaleFactor,
-          ),
-          suffixIcon: Padding(
-            padding: EdgeInsets.all(12.0 * scaleFactor),
-            child: SvgPicture.asset(
-              svgPath,
-              width: 18 * scaleFactor,
-              height: 18 * scaleFactor,
-              fit: BoxFit.contain,
+    return AnimatedBuilder(
+      animation: focusNode,
+      builder: (context, child) {
+        final bool isFocused = focusNode.hasFocus;
+        final Color textColor = isFocused ? const Color(0xFFFF8500) : const Color(0xFF172B4D);
+        
+        return SizedBox(
+          height: 64,
+          child: TextField(
+            controller: controller,
+            focusNode: focusNode,
+            cursorColor: const Color(0xFFFF8500),
+            style: TextStyle(
+              color: textColor,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+            decoration: InputDecoration(
+              labelText: labelText,
+              labelStyle: TextStyle(
+                color: const Color(0xFF172B4D).withOpacity(0.7),
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
+              floatingLabelStyle: const TextStyle(
+                color: Color(0xFFFF8500),
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+              filled: true,
+              fillColor: Colors.grey.shade50,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 20,
+              ),
+              suffixIcon: Container(
+                padding: const EdgeInsets.all(16),
+                child: SvgPicture.asset(
+                  svgPath,
+                  width: 20,
+                  height: 20,
+                  colorFilter: ColorFilter.mode(
+                    const Color(0xFFFF8500),
+                    BlendMode.srcIn,
+                  ),
+                ),
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(
+                  color: Color(0xFFFF8500),
+                  width: 2,
+                ),
+              ),
             ),
           ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(5 * scaleFactor),
-            borderSide: const BorderSide(color: Colors.grey),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(5 * scaleFactor),
-            borderSide: const BorderSide(color: Colors.grey),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(5 * scaleFactor),
-            borderSide: const BorderSide(color: Colors.grey, width: 2),
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -266,58 +339,72 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
     required TextEditingController controller,
     required bool isPasswordVisible,
     required VoidCallback onToggleVisibility,
-    required double scaleFactor,
+    required FocusNode focusNode,
   }) {
-    return SizedBox(
-      width: 366 * scaleFactor,
-      height: 60 * scaleFactor,
-      child: TextField(
-        controller: controller,
-        obscureText: !isPasswordVisible,
-        cursorColor: const Color(0xFF172B4D),
-        style: TextStyle(
-          color: const Color(0xFF172B4D),
-          fontSize: 14 * scaleFactor,
-        ),
-        decoration: InputDecoration(
-          labelText: 'Password',
-          labelStyle: TextStyle(
-            color: const Color(0xFF172B4D),
-            fontSize: 14 * scaleFactor,
-          ),
-          floatingLabelStyle: TextStyle(
-            color: Colors.grey,
-            fontSize: 14 * scaleFactor,
-          ),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: EdgeInsets.symmetric(
-            horizontal: 16 * scaleFactor,
-            vertical: 12 * scaleFactor,
-          ),
-          suffixIcon: IconButton(
-            iconSize: 28 * scaleFactor,
-            padding: EdgeInsets.all(12 * scaleFactor),
-            icon: Icon(
-              isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-              color: const Color(0xFFFF8500),
+    return AnimatedBuilder(
+      animation: focusNode,
+      builder: (context, child) {
+        final bool isFocused = focusNode.hasFocus;
+        final Color textColor = isFocused ? const Color(0xFFFF8500) : const Color(0xFF172B4D);
+        
+        return SizedBox(
+          height: 64,
+          child: TextField(
+            controller: controller,
+            focusNode: focusNode,
+            obscureText: !isPasswordVisible,
+            cursorColor: const Color(0xFFFF8500),
+            style: TextStyle(
+              color: textColor,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
             ),
-            onPressed: onToggleVisibility,
+            decoration: InputDecoration(
+              labelText: 'Password',
+              labelStyle: TextStyle(
+                color: const Color(0xFF172B4D).withOpacity(0.7),
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
+              floatingLabelStyle: const TextStyle(
+                color: Color(0xFFFF8500),
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+              filled: true,
+              fillColor: Colors.grey.shade50,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 20,
+              ),
+              suffixIcon: IconButton(
+                iconSize: 24,
+                padding: const EdgeInsets.all(16),
+                icon: Icon(
+                  isPasswordVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  color: const Color(0xFFFF8500),
+                ),
+                onPressed: onToggleVisibility,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(
+                  color: Color(0xFFFF8500),
+                  width: 2,
+                ),
+              ),
+            ),
           ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(5 * scaleFactor),
-            borderSide: const BorderSide(color: Colors.grey),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(5 * scaleFactor),
-            borderSide: const BorderSide(color: Colors.grey),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(5 * scaleFactor),
-            borderSide: const BorderSide(color: Colors.grey, width: 2),
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

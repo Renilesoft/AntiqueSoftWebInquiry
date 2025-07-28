@@ -31,8 +31,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-
   await Username.loadusername();
   await Vendor.loadVendorId();
   await TotalSales.load(); // loads saved double into TotalSales.totalsales
@@ -113,18 +111,19 @@ class _AntiqueSoftAppState extends State<AntiqueSoftApp> {
     try {
       FirebaseMessaging messaging = FirebaseMessaging.instance;
 
-      // Request notification permissions (especially for iOS)
+      
       NotificationSettings settings = await messaging.requestPermission(
         alert: true,
         badge: true,
         sound: true,
-        // IMPORTANT: These are crucial for iOS foreground notifications
+        
         announcement: false,
         carPlay: false,
         criticalAlert: false,
         provisional: false,
       );
 
+      
       // ignore: avoid_print
       print('iOS permission status: ${settings.authorizationStatus}');
 
