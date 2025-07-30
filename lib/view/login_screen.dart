@@ -126,7 +126,7 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
                       desktop: 60,
                     )),
                     
-                    // ⭐ RESPONSIVE LOGO SECTION ⭐
+                    
                     _buildLogoSection(),
                     
                     SizedBox(height: getResponsiveValue(
@@ -135,7 +135,7 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
                       desktop: 80,
                     )),
                     
-                    // Form fields with responsive spacing
+                    
                     _buildFormSection(loginViewModel),
                     
                     SizedBox(height: getResponsiveValue(
@@ -296,7 +296,7 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
                 ),
               ),
             ),
-            SizedBox(width: screenWidth < 600 ? 6 : 10),
+            SizedBox(width: screenWidth < 600 ? 1 : 2),
             Text(
               'Remember me',
               style: TextStyle(
@@ -342,7 +342,7 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
                     ),
                   ),
                 ),
-              ),
+             ),
       ],
     );
   }
