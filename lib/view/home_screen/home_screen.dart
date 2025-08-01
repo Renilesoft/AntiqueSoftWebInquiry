@@ -1169,7 +1169,7 @@ Future<void> _fetchMonthlySalesData() async {
               Text(
                 value,
                 style: TextStyle(
-                  fontSize: screenSize.width > 600 ? 24 : 21,
+                  fontSize: screenSize.width > 600 ? 24 : 20,
                   fontWeight: FontWeight.bold,
                   color: const Color(0xFF2D3142),
                 ),
