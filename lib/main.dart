@@ -135,7 +135,7 @@ class _AntiqueSoftAppState extends State<AntiqueSoftApp> {
         print('Provisional notification permissions granted');
       } else {
         // ignore: avoid_print
-        print(' Notification permissions denied');
+        print('Notification permissions denied');
       }
 
       // CRITICAL FOR iOS: Configure foreground notification presentation options
