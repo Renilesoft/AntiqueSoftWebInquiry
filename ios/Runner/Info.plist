@@ -61,7 +61,5 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>This app requires camera access for profile and report photos.</string>
-	<key>NSUserTrackingUsageDescription</key>
-	<string>This identifier is used to deliver notifications and improve the experience.</string>
 </dict>
 </plist>
