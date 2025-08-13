@@ -9,7 +9,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.esoftsys.antiquesoftwebinquiry</string>
+	<string>com.esoftsys.antiquesoftwebinquiry2</string>
 	<key>PROJECT_ID</key>
 	<string>aswebinquiry</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:120916304501:ios:9adf642673ba7525980e3c</string>
+	<string>1:120916304501:ios:33845662d2633018980e3c</string>
 </dict>
 </plist>

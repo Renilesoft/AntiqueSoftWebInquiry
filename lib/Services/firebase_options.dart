@@ -63,6 +63,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '120916304501',
     projectId: 'aswebinquiry',
     storageBucket: 'aswebinquiry.firebasestorage.app',
-    iosBundleId: 'com.esoftsys.antiquesoftwebinquiry1',
+    iosBundleId: 'com.esoftsys.antiquesoftwebinquiry2',
   );
 }

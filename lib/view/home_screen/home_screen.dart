@@ -1321,14 +1321,14 @@ Widget _buildChart(Size screenSize) {
   final Map<String, Map<String, dynamic>> chartConfigs = {
   'Daily': {
     'labels': dailySalesLabels.isNotEmpty ? dailySalesLabels : ['Sun\n(Jun 15)', 'Mon\n(Jun 16)', 'Tue\n(Jun 17)', 'Wed\n(Jun 18)', 'Thu\n(Jun 19)', 'Fri\n(Jun 20)', 'Sat\n(Jun 21)'],
-    'maxY': 1000.0, // Fixed to 100
-    'interval': 100.0,
+    'maxY': 500.0, // Fixed to 100
+    'interval': 50.0,
     'spots': dailySalesSpots.isNotEmpty ? dailySalesSpots : <FlSpot>[],
   },
 'Monthly': {
   'labels': monthlySalesLabels,
-  'maxY': 10000.0,
-  'interval': 1000.0, // Dynamic interval based on max value
+  'maxY': 5000.0,
+  'interval': 500.0, // Dynamic interval based on max value
   'spots': monthlySalesSpots.isNotEmpty ? monthlySalesSpots : const [
     FlSpot(0, 2000),
     FlSpot(1, 4000),
@@ -1338,8 +1338,8 @@ Widget _buildChart(Size screenSize) {
 },
 'Yearly': {
   'labels': yearlySalesLabels,
-  'maxY': 50000.0,
-  'interval': 5000.0, // Dynamic interval based on max value
+  'maxY': 20000.0,
+  'interval': 2000.0, // Dynamic interval based on max value
   'spots': yearlySalesSpots.isNotEmpty ? yearlySalesSpots : const [
     FlSpot(0, 15000),
     FlSpot(1, 25000),
