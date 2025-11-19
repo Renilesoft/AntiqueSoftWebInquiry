@@ -73,7 +73,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '120916304501',
     projectId: 'aswebinquiry',
     storageBucket: 'aswebinquiry.firebasestorage.app',
-    iosBundleId: 'com.example.antiquewebemquiry',
+    iosBundleId: 'com.esoftsys.antiquesoftwebinquiry2',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
