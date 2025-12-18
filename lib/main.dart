@@ -33,12 +33,15 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 Future<void> main() async {
-
   WidgetsFlutterBinding.ensureInitialized();
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  await FirebaseCrashlytics.instance
+      .setCrashlyticsCollectionEnabled(true);
+      
   FlutterError.onError =
       FirebaseCrashlytics.instance.recordFlutterFatalError;
 
@@ -51,6 +54,7 @@ Future<void> main() async {
     return true;
   };
 
+
   await Username.loadusername();
   await Vendor.loadVendorId();
   await TotalSales.load();
@@ -59,6 +63,7 @@ Future<void> main() async {
   await DailyTotalItems.load();
   await MonthlyTotalSales.load();
   await DailyTotalSales.load();
+
 
   runApp(const AntiqueSoftApp());
 }
