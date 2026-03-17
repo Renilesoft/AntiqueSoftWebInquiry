@@ -2,18 +2,24 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CLIENT_ID</key>
+	<string>406099696497-irb7edfevfkhi6t5s9kbuq1mt1og95rg.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.406099696497-irb7edfevfkhi6t5s9kbuq1mt1og95rg</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>406099696497-17qn06u8a0dc717u8ul7s49ampk13lul.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
-	<string>AIzaSyC9ukAqdVr6qL7ZDdibVidpnbohGxiXmK0</string>
+	<string>AIzaSyDooSUGSf63Ghq02_iIhtnmwMDs4HlWS6c</string>
 	<key>GCM_SENDER_ID</key>
-	<string>120916304501</string>
+	<string>406099696497</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.esoftsys.antiquesoftwebinquiry2</string>
+	<string>io.flutter.plugins.firebase.messaging</string>
 	<key>PROJECT_ID</key>
-	<string>aswebinquiry</string>
+	<string>flutterfire-e2e-tests</string>
 	<key>STORAGE_BUCKET</key>
-	<string>aswebinquiry.firebasestorage.app</string>
+	<string>flutterfire-e2e-tests.appspot.com</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -25,6 +31,8 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:120916304501:ios:17cc92245275b214980e3c</string>
+	<string>1:406099696497:ios:1b423b89c63b82053574d0</string>
+	<key>DATABASE_URL</key>
+	<string>https://flutterfire-e2e-tests-default-rtdb.europe-west1.firebasedatabase.app</string>
 </dict>
 </plist>

@@ -1,4 +1,3 @@
-
 import 'package:antiquewebemquiry/Global/sales.dart';
 import 'package:antiquewebemquiry/Global/yearlytotalquantity.dart';
 import 'package:antiquewebemquiry/Global/yearlytotalsales.dart';
@@ -19,18 +18,25 @@ import 'dart:io' show Platform;
 import 'Services/notification.dart';
 import 'viewmodel/login_viewmodel.dart';
 
-// Background message handler
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+// Background message handler - MUST be top-level
 @pragma('vm:entry-point')
- // Ensures iOS handles background properly
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
     await Firebase.initializeApp();
-    // ignore: avoid_print
-    print(' Background message received: ${message.messageId}');
-    NotificationService().showNotification(message);
+    print('🔔 Background message received: ${message.messageId}');
+    print('   Title: ${message.notification?.title}');
+    print('   Body: ${message.notification?.body}');
+    
+    // Show notification in background
+    try {
+      NotificationService().showNotification(message);
+    } catch (e) {
+      print('   Error showing background notification: $e');
+    }
   } catch (e) {
-    // ignore: avoid_print
-    print(' Background message handler error: $e');
+    print('❌ Background message handler error: $e');
   }
 }
 
@@ -40,6 +46,9 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Set background message handler BEFORE running app
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   await FirebaseCrashlytics.instance
       .setCrashlyticsCollectionEnabled(true);
@@ -56,7 +65,6 @@ Future<void> main() async {
     return true;
   };
 
-
   await Username.loadusername();
   await Vendor.loadVendorId();
   await TotalSales.load();
@@ -65,7 +73,6 @@ Future<void> main() async {
   await DailyTotalItems.load();
   await MonthlyTotalSales.load();
   await DailyTotalSales.load();
-
 
   runApp(const AntiqueSoftApp());
 }
@@ -89,167 +96,172 @@ class _AntiqueSoftAppState extends State<AntiqueSoftApp> {
 
   Future<void> _initializeApp() async {
     try {
-      // ignore: avoid_print
-      print('Initializing Firebase...');
-      
-      // Initialize Firebase with timeout
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      ).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          throw Exception('Firebase initialization timed out after 30 seconds');
-        },
-      );
-      
-      // ignore: avoid_print
-      print('Firebase initialized successfully');
+      print('\n╔════════════════════════════════════════╗');
+      print('║  PUSH NOTIFICATION INITIALIZATION      ║');
+      print('╚════════════════════════════════════════╝\n');
 
-      // Setup FCM background message handler
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-      // ignore: avoid_print
-      print('Background message handler set');
-
-      // Setup push notifications
       await _setupPushNotifications();
-      // ignore: avoid_print
-      print('Push notifications setup complete');
+
+      print('\n✅ Push notifications setup complete\n');
+
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e, stackTrace) {
+      print('\n❌ App initialization failed: $e');
+      print('Stack trace: $stackTrace\n');
 
       if (mounted) {
         setState(() {
+          _error = true;
+          _errorMessage = e.toString();
         });
       }
-      
-      } catch (e, stackTrace) {
-    
-
-    // ignore: avoid_print
-    print('App initialization failed: $e');
-    // ignore: avoid_print
-    print('Stack trace: $stackTrace');
-
-    if (mounted) {
-      setState(() {
-        _error = true;
-        _errorMessage = e.toString();
-      });
     }
   }
-}
 
   Future<void> _setupPushNotifications() async {
     try {
-      FirebaseMessaging messaging = FirebaseMessaging.instance;
+      final messaging = FirebaseMessaging.instance;
 
-      
-      NotificationSettings settings = await messaging.requestPermission(
+      print('1️⃣  REQUESTING NOTIFICATION PERMISSION...');
+      final settings = await messaging.requestPermission(
         alert: true,
         badge: true,
         sound: true,
-        
         announcement: false,
         carPlay: false,
         criticalAlert: false,
         provisional: false,
       );
 
-      
-      // ignore: avoid_print
-      print('iOS permission status: ${settings.authorizationStatus}');
+      print('   ✅ Permission requested');
+      print('   Authorization Status: ${settings.authorizationStatus}');
+      print('   Alert: ${settings.alert}');
+      print('   Badge: ${settings.badge}');
+      print('   Sound: ${settings.sound}');
 
-      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-        // ignore: avoid_print
-        print('Notification permissions granted');
-      } else if (settings.authorizationStatus == AuthorizationStatus.provisional) {
-        // ignore: avoid_print
-        print('Provisional notification permissions granted');
-      } else {
-        // ignore: avoid_print
-        print('Notification permissions denied');
+      if (settings.authorizationStatus != AuthorizationStatus.authorized) {
+        print('   ⚠️  WARNING: User did not authorize notifications!');
       }
 
-      // CRITICAL FOR iOS: Configure foreground notification presentation options
+      // iOS-specific foreground presentation
       if (Platform.isIOS) {
+        print('\n2️⃣  CONFIGURING iOS FOREGROUND PRESENTATION...');
         await messaging.setForegroundNotificationPresentationOptions(
-          alert: true,  
-          badge: true,  
-          sound: true,  
+          alert: true,
+          badge: true,
+          sound: true,
         );
-        
-        print(' iOS foreground notification options configured');
+        print('   ✅ iOS foreground options configured');
       }
 
- 
+      print('\n3️⃣  INITIALIZING NOTIFICATION SERVICE...');
       NotificationService notificationService = NotificationService();
       await notificationService.init();
-      // ignore: avoid_print
-      print('Local notification service initialized');
+      print('   ✅ Notification service initialized');
 
-      // Get FCM token
-      try {
-        String? token = await messaging.getToken();
-        // ignore: avoid_print
-        print('FCM Token: ${token ?? 'No token received'}');
-      } catch (e) {
-        // ignore: avoid_print
-        print('Failed to get FCM token: $e');
+      print('\n4️⃣  GETTING TOKENS...');
+      
+      // Get FCM Token
+      final fcmToken = await messaging.getToken();
+      if (fcmToken != null) {
+        print('   ✅ FCM Token obtained:');
+        print('      ${fcmToken.substring(0, 50)}...');
+      } else {
+        print('   ❌ FCM Token is NULL!');
+        print('      Possible causes:');
+        print('      - GoogleService-Info.plist is missing or wrong');
+        print('      - Firebase initialization failed');
       }
 
-      // Listen for foreground messages
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-      // ignore: avoid_print
-      // print('Foreground message received: ${message.notification?.title}');
-      // // ignore: avoid_print
-      // print('Platform: ${Platform.isIOS ? 'iOS' : 'Android'}');
+      // Get APNs Token (iOS only)
+      if (Platform.isIOS) {
+        final apnsToken = await messaging.getAPNSToken();
+        if (apnsToken != null) {
+          print('   ✅ APNs Token obtained:');
+          print('      ${apnsToken.substring(0, 50)}...');
+        } else {
+          print('   ❌ APNs Token is NULL!');
+          print('      Possible causes:');
+          print('      - Provisioning profile expired or incorrect');
+          print('      - Bundle ID mismatch');
+          print('      - Code signing issue');
+        }
+      }
 
-      // print("🔥 FULL MESSAGE: ${message.data}");
+      print('\n5️⃣  SETTING UP MESSAGE LISTENERS...');
 
-      
+      // Foreground message listener
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+        print('   🔥 FOREGROUND MESSAGE RECEIVED:');
+        print('      Title: ${message.notification?.title}');
+        print('      Body: ${message.notification?.body}');
+        print('      MessageId: ${message.messageId}');
 
-      try {
-        // Only show local notification manually when app is in foreground.
-        if (Platform.isAndroid) {
-          // On Android, Firebase automatically displays notification in background,
-          // so only show manually when app is in foreground.
-          if (message.notification != null) {
+        try {
+          if (Platform.isAndroid) {
+            if (message.notification != null) {
+              print('   📱 Showing Android notification...');
+              await notificationService.showNotification(message);
+            }
+          } else if (Platform.isIOS) {
+            print('   📱 Showing iOS notification...');
             await notificationService.showNotification(message);
           }
-        } else if (Platform.isIOS) {
-          // iOS doesn't show notification automatically in foreground
-          // even with presentation options. So show manually.
-          await notificationService.showNotification(message);
+        } catch (e) {
+          print('   ❌ Failed to show notification: $e');
         }
-      } catch (e) {
-        // ignore: avoid_print
-        print('Failed to show notification: $e');
-      }
-    });
-
-      // Listen for when user taps notification while app is in background
-      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        // ignore: avoid_print
-        print('App opened from notification: ${message.notification?.title}');
-        // Handle navigation here if needed
       });
+      print('   ✅ Foreground listener attached');
 
-      // Handle initial message when app is launched from terminated state
-      RemoteMessage? initialMessage = await messaging.getInitialMessage();
+      // Message opened listener
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        print('   📭 APP OPENED FROM NOTIFICATION:');
+        print('      Title: ${message.notification?.title}');
+        print('      MessageId: ${message.messageId}');
+      });
+      print('   ✅ Message opened listener attached');
+
+      // Check for initial message
+      print('\n6️⃣  CHECKING INITIAL MESSAGE...');
+      final initialMessage = await messaging.getInitialMessage();
       if (initialMessage != null) {
-        // ignore: avoid_print
-        print('App launched from notification: ${initialMessage.notification?.title}');
-        // Handle navigation here if needed
+        print('   📬 App launched from notification:');
+        print('      Title: ${initialMessage.notification?.title}');
+      } else {
+        print('   ℹ️  App launched normally (not from notification)');
       }
 
-    } catch (e) {
-      // ignore: avoid_print
-      print('Push notification setup failed: $e');
-      // Don't throw here, just log the error
+      // Token refresh listener
+      print('\n7️⃣  TOKEN REFRESH LISTENER...');
+      messaging.onTokenRefresh.listen((newToken) {
+        print('   🔄 FCM Token refreshed: ${newToken.substring(0, 30)}...');
+      });
+      print('   ✅ Token refresh listener attached');
+
+      print('\n╔════════════════════════════════════════╗');
+      print('║          FINAL CHECKLIST                ║');
+      print('╚════════════════════════════════════════╝');
+      print('   ✅ Firebase initialized');
+      print('   ${fcmToken != null ? '✅' : '❌'} FCM Token obtained');
+      if (Platform.isIOS) {
+        final apnsToken = await messaging.getAPNSToken();
+        print('   ${apnsToken != null ? '✅' : '❌'} APNs Token obtained');
+      }
+      print('   ${settings.authorizationStatus == AuthorizationStatus.authorized ? '✅' : '❌'} User authorized');
+      print('   ✅ All listeners configured');
+      print('   ✅ Ready to receive notifications! 🎉\n');
+
+    } catch (e, stackTrace) {
+      print('\n❌ Push notification setup failed: $e');
+      print('Stack trace: $stackTrace\n');
+      rethrow;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Error state
     if (_error) {
       return MaterialApp(
         title: 'AntiqueSoft',
@@ -312,6 +324,7 @@ class _AntiqueSoftAppState extends State<AntiqueSoftApp> {
       child: MaterialApp(
         title: 'AntiqueSoft',
         debugShowCheckedModeBanner: false,
+        navigatorKey: navigatorKey,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF172B4D)),
           useMaterial3: true,
