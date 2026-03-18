@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:antiquewebemquiry/Constants/baseurl.dart';
 import 'package:antiquewebemquiry/app_data.dart';
 import 'package:antiquewebemquiry/viewmodel/login_viewmodel.dart';
-// import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:quickalert/quickalert.dart';
 import 'package:http/http.dart' as http;
@@ -105,14 +104,17 @@ class DrawerMenu extends StatelessWidget {
     final prefs = await SharedPreferences.getInstance();
     final location = prefs.getString('location') ?? '';
     final username = prefs.getString('username') ?? '';
-    //String? fcmToken = null;
+    
+    // ✅ Get device UUID instead of FCM token
+    final deviceUUID = await LoginViewModel.getDeviceUUID();
+    print('📱 Logout with UUID: $deviceUUID');
 
     final url = Uri.parse('$baseurl/Home/logout');
     final headers = {'Content-Type': 'application/json'};
     final body = jsonEncode({
       "location": location,
       "username": username,
-      //"fcmToken": fcmToken,
+      "fcmToken": deviceUUID,  // ✅ Changed from fcmToken to deviceUUID
     });
 
     try {
@@ -169,6 +171,15 @@ class DrawerMenu extends StatelessWidget {
       await prefs.setString('rememberedStoreCode', rememberedStoreCode);
       await prefs.setString('rememberedUsername', rememberedUsername);
       await prefs.setString('rememberedPassword', rememberedPassword);
+    }
+    
+    // ✅ Preserve device UUID across sessions
+    // Get UUID before clear
+    String? deviceUUID = prefs.getString('device_uuid');
+    
+    // Preserve it after clear if it exists
+    if (deviceUUID != null && deviceUUID.isNotEmpty) {
+      await prefs.setString('device_uuid', deviceUUID);
     }
   }
 

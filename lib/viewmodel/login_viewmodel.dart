@@ -1,11 +1,11 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:antiquewebemquiry/app_data.dart';
 import 'package:antiquewebemquiry/user_data.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:provider/provider.dart';
+import 'package:provider/Provider.dart';
 import '../Constants/baseurl.dart';
 import '../Global/location.dart';
 import '../Global/username.dart';
@@ -27,10 +27,77 @@ class LoginViewModel extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
   bool _isInitialized = false;
+  
+  String? _deviceUUID;
+  String? get deviceUUID => _deviceUUID;
 
   // Constructor to automatically restore credentials when ViewModel is created
   LoginViewModel() {
     _initializeCredentials();
+    _initializeDeviceUUID();
+  }
+
+  Future<void> _initializeDeviceUUID() async {
+    _deviceUUID = await _getOrCreateDeviceUUID();
+    print('✅ Device UUID: $_deviceUUID');
+  }
+
+  /// Generate a simple UUID v4-like string without external dependency
+  static String _generateSimpleUUID() {
+    final random = Random.secure();
+    final values = List<int>.generate(16, (i) => random.nextInt(256));
+    
+    // Set version to 4 and variant to RFC 4122
+    values[6] = (values[6] & 0x0f) | 0x40;
+    values[8] = (values[8] & 0x3f) | 0x80;
+    
+    return '${_toHex(values, 0, 4)}-'
+        '${_toHex(values, 4, 6)}-'
+        '${_toHex(values, 6, 8)}-'
+        '${_toHex(values, 8, 10)}-'
+        '${_toHex(values, 10, 16)}';
+  }
+
+  /// Convert bytes to hex string
+  static String _toHex(List<int> bytes, int start, int end) {
+    return bytes
+        .sublist(start, end)
+        .map((b) => b.toRadixString(16).padLeft(2, '0'))
+        .join();
+  }
+
+  Future<String> _getOrCreateDeviceUUID() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // Check if UUID already exists
+    String? existingUUID = prefs.getString('device_uuid');
+    
+    if (existingUUID != null && existingUUID.isNotEmpty) {
+      print('📱 Using existing device UUID: $existingUUID');
+      return existingUUID;
+    }
+    
+    // Generate new UUID if doesn't exist
+    final newUUID = _generateSimpleUUID();
+    
+    // Store it globally in SharedPreferences
+    await prefs.setString('device_uuid', newUUID);
+    print('📱 Generated new device UUID: $newUUID');
+    
+    return newUUID;
+  }
+
+  // Public method to get UUID from anywhere in the app
+  static Future<String> getDeviceUUID() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? uuid = prefs.getString('device_uuid');
+    
+    if (uuid == null || uuid.isEmpty) {
+      uuid = _generateSimpleUUID();
+      await prefs.setString('device_uuid', uuid);
+    }
+    
+    return uuid;
   }
 
   Future<void> _initializeCredentials() async {
@@ -102,104 +169,103 @@ class LoginViewModel extends ChangeNotifier {
   }
 
   Future<bool> login(BuildContext context) async {
-  _setLoading(true);
+    _setLoading(true);
 
-  try {
-    final storeCode = storeCodeController.text.trim();
-    final username = usernameController.text.trim();
-    final password = passwordController.text.trim();
-    //final fcmToken = await FirebaseMessaging.instance.getToken();
+    try {
+      final storeCode = storeCodeController.text.trim();
+      final username = usernameController.text.trim();
+      final password = passwordController.text.trim();
+      
+      // Get device UUID instead of FCM token
+      final deviceUUID = await getDeviceUUID();
+      print('📱 Sending login with UUID: $deviceUUID');
 
-    // if (fcmToken == null) {
-    //   _setLoading(false);
-    //   debugPrint('Failed to get FCM token');
-    //   return false;
-    // }
+      final response = await http.post(
+        Uri.parse("$baseurl/Home/login"),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          "location": storeCode,
+          "username": username,
+          "password": encryptString(password),
+          "fcmToken": deviceUUID,  // ✅ Changed from fcmToken to deviceUUID
+        }),
+      ).timeout(const Duration(seconds: 10));
 
-    final response = await http.post(
-      Uri.parse("$baseurl/Home/login"),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        "location": storeCode,
-        "username": username,
-        "password": encryptString(password),
-        //"fcmToken": fcmToken,
-      }),
-    ).timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final jsonMap = jsonDecode(response.body);
 
-    if (response.statusCode == 200) {
-      final jsonMap = jsonDecode(response.body);
+        if (jsonMap.containsKey('userCredentials') &&
+            jsonMap['userCredentials'] is List &&
+            jsonMap['message'] == "Success") {
+          final userCredentials = jsonMap['userCredentials'];
+          final userDataList = userCredentials
+              .map<UserData>((item) => UserData.fromJson(item['userData']))
+              .toList();
 
-      if (jsonMap.containsKey('userCredentials') &&
-          jsonMap['userCredentials'] is List &&
-          jsonMap['message'] == "Success") {
-        final userCredentials = jsonMap['userCredentials'];
-        final userDataList = userCredentials
-            .map<UserData>((item) => UserData.fromJson(item['userData']))
-            .toList();
+          final user = userDataList.first;
+          final prefs = await SharedPreferences.getInstance();
 
-        final user = userDataList.first;
-        final prefs = await SharedPreferences.getInstance();
+          // ✅ Store session data
+          await prefs.setString('username', username);
+          await prefs.setString('location', storeCode);
+          await prefs.setInt('vendorid', user.vendorID);
+          await prefs.setString('userData', jsonEncode(user.toJson()));
+          await prefs.setInt('loginTimestamp', DateTime.now().millisecondsSinceEpoch);
+          
+          // ✅ Store device UUID globally (already stored, but ensure it's there)
+          await prefs.setString('device_uuid', deviceUUID);
 
-        // ✅ Store session data
-        await prefs.setString('username', username);
-        await prefs.setString('location', storeCode);
-        await prefs.setInt('vendorid', user.vendorID);
-        await prefs.setString('userData', jsonEncode(user.toJson()));
-        await prefs.setInt('loginTimestamp', DateTime.now().millisecondsSinceEpoch);
+          // ✅ Mark device as logged in
+          await prefs.setBool('hasLoggedInOnThisDevice', true);
 
-        // ✅ Mark device as logged in
-        await prefs.setBool('hasLoggedInOnThisDevice', true);
+          // ✅ Remember Me logic
+          if (_rememberMe) {
+            await prefs.setBool('rememberMe', true);
+            await _saveCredentials();
+          } else {
+            await prefs.remove('rememberedStoreCode');
+            await prefs.remove('rememberedUsername');
+            await prefs.remove('rememberedPassword');
+            await prefs.setBool('rememberMe', false);
+          }
 
-        // ✅ Remember Me logic
-        if (_rememberMe) {
-          await prefs.setBool('rememberMe', true);
-          await _saveCredentials();
+          await Location.loadlocation();
+          await Username.loadusername();
+          await Vendor.loadVendorId();
+
+          // ignore: use_build_context_synchronously
+          final appData = Provider.of<AppData>(context, listen: false);
+          appData.updateUserData(userDataList);
+          appData.setSalesDateTime(DateTime.now().toUtc());
+
+          _setLoading(false);
+
+          if (context.mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const HomeScreen(showWelcomeMessage: true),
+              ),
+            );
+          }
+
+          return true;
         } else {
-          await prefs.remove('rememberedStoreCode');
-          await prefs.remove('rememberedUsername');
-          await prefs.remove('rememberedPassword');
-          await prefs.setBool('rememberMe', false);
+          _setLoading(false);
+          debugPrint("Login failed: ${jsonMap["message"]}");
+          return false;
         }
-
-        await Location.loadlocation();
-        await Username.loadusername();
-        await Vendor.loadVendorId();
-
-        // ignore: use_build_context_synchronously
-        final appData = Provider.of<AppData>(context, listen: false);
-        appData.updateUserData(userDataList);
-        appData.setSalesDateTime(DateTime.now().toUtc());
-
-        _setLoading(false);
-
-        if (context.mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const HomeScreen(showWelcomeMessage: true),
-            ),
-          );
-        }
-
-        return true;
       } else {
         _setLoading(false);
-        debugPrint("Login failed: ${jsonMap["message"]}");
+        debugPrint("Login failed: ${response.statusCode}");
         return false;
       }
-    } else {
+    } catch (e) {
       _setLoading(false);
-      debugPrint("Login failed: ${response.statusCode}");
+      debugPrint("Error: $e");
       return false;
     }
-  } catch (e) {
-    _setLoading(false);
-    debugPrint("Error: $e");
-    return false;
   }
-}
-
 
   // Method to handle logout - call this from your logout functionality
   Future<void> logout() async {
@@ -211,6 +277,9 @@ class LoginViewModel extends ChangeNotifier {
     await prefs.remove('vendorid');
     await prefs.remove('userData');
     await prefs.remove('loginTimestamp');
+    
+    // ✅ Device UUID is NOT cleared (persists across sessions)
+    // This allows tracking the same device even after logout
     
     // Don't clear remembered credentials if Remember Me is enabled
     // This allows the user to see their saved credentials when they return to login

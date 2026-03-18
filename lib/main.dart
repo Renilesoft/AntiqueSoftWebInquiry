@@ -3,7 +3,6 @@ import 'package:antiquewebemquiry/Global/yearlytotalquantity.dart';
 import 'package:antiquewebemquiry/Global/yearlytotalsales.dart';
 import 'package:antiquewebemquiry/Global/username.dart';
 import 'package:antiquewebemquiry/Global/vendorid.dart';
-import 'package:antiquewebemquiry/Services/notification_test_page.dart';
 import 'package:antiquewebemquiry/app_data.dart';
 import 'package:antiquewebemquiry/view/splash_screen.dart';
 import 'package:flutter/material.dart';
@@ -75,6 +74,24 @@ Future<void> initializeLocalNotifications() async {
     }
   }
 
+  // Request Android permissions explicitly (Android 13+)
+  if (Platform.isAndroid) {
+    try {
+      final AndroidFlutterLocalNotificationsPlugin? androidPlugin =
+          flutterLocalNotificationsPlugin
+              .resolvePlatformSpecificImplementation<
+                  AndroidFlutterLocalNotificationsPlugin>();
+
+      if (androidPlugin != null) {
+        final bool? result =
+            await androidPlugin.requestNotificationsPermission();
+        print('✅ Android notification permissions requested: $result');
+      }
+    } catch (e) {
+      print('❌ Error requesting Android permissions: $e');
+    }
+  }
+
   print('✅ Local notifications initialized');
 }
 
@@ -109,9 +126,7 @@ class AntiqueSoftApp extends StatelessWidget {
           ),
         ),
         home: const SplashScreen(),
-        routes: {
-          '/notification-test': (context) => const NotificationTestPage(),
-        },
+        
       ),
     );
   }
