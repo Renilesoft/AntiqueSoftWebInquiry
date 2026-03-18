@@ -8,7 +8,7 @@
 PRODUCT_NAME = antiquewebemquiry
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.antiquewebemquiry
+PRODUCT_BUNDLE_IDENTIFIER = com.esoftsys.antiquesoftwebinquiry2
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2025 com.example. All rights reserved.
