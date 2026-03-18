@@ -5,19 +5,18 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
-  // Singleton pattern for better resource management
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
 
   Future<void> init() async {
     try {
-      // Android initialization
-      const AndroidInitializationSettings initializationSettingsAndroid =
+      // Android setup
+      const AndroidInitializationSettings androidSettings =
           AndroidInitializationSettings('@mipmap/ic_launcher');
       
-      // iOS initialization
-      const DarwinInitializationSettings initializationSettingsIOS =
+      // iOS setup - CRITICAL SETTINGS
+      const DarwinInitializationSettings iosSettings =
           DarwinInitializationSettings(
         requestAlertPermission: true,
         requestBadgePermission: true,
@@ -27,198 +26,116 @@ class NotificationService {
         defaultPresentSound: true,
       );
 
-      // Combined initialization settings
-      const InitializationSettings initializationSettings =
-          InitializationSettings(
-        android: initializationSettingsAndroid,
-        iOS: initializationSettingsIOS,
+      const InitializationSettings initSettings = InitializationSettings(
+        android: androidSettings,
+        iOS: iosSettings,
       );
 
-      await _flutterLocalNotificationsPlugin.initialize(
-        initializationSettings,
-        onDidReceiveNotificationResponse: (NotificationResponse response) async {
-          await _handleNotificationTap(response);
-        },
-      );
+      await _flutterLocalNotificationsPlugin.initialize(initSettings);
 
-      // Create notification channel for Android
+      // Android: Create notification channel
       if (Platform.isAndroid) {
-        await _createNotificationChannel();
+        await _createAndroidChannel();
       }
 
-      // Request permissions on iOS
+      // iOS: Request permissions
       if (Platform.isIOS) {
-        await _requestIOSPermissions();
+        await _requestiOSPermissions();
       }
 
-      print('✅ NotificationService initialized successfully');
+      print('✅ Notifications initialized');
     } catch (e) {
-      print('❌ NotificationService initialization failed: $e');
-      rethrow;
+      print('❌ Init error: $e');
     }
   }
 
-  Future<void> _createNotificationChannel() async {
-    const AndroidNotificationChannel channel = AndroidNotificationChannel(
-      'high_importance_channel',
-      'High Importance Notifications',
-      description: 'This channel is used for important notifications.',
-      importance: Importance.high,
-      playSound: true,
-      enableVibration: true,
-    );
+  Future<void> _createAndroidChannel() async {
+    try {
+      const AndroidNotificationChannel channel = AndroidNotificationChannel(
+        'high_importance_channel',
+        'Important Notifications',
+        importance: Importance.high,
+        playSound: true,
+      );
 
-    final AndroidFlutterLocalNotificationsPlugin? androidPlugin =
-        _flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
+      final AndroidFlutterLocalNotificationsPlugin? androidPlugin =
+          _flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
 
-    if (androidPlugin != null) {
-      await androidPlugin.createNotificationChannel(channel);
-      print('✅ Android notification channel created');
+      await androidPlugin?.createNotificationChannel(channel);
+      print('✅ Android channel created');
+    } catch (e) {
+      print('❌ Android channel error: $e');
     }
   }
 
-  Future<void> _requestIOSPermissions() async {
+  Future<void> _requestiOSPermissions() async {
     try {
       final IOSFlutterLocalNotificationsPlugin? iosPlugin =
           _flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
               IOSFlutterLocalNotificationsPlugin>();
 
       if (iosPlugin != null) {
-        final bool? result = await iosPlugin.requestPermissions(
+        final result = await iosPlugin.requestPermissions(
           alert: true,
           badge: true,
           sound: true,
         );
-        print('✅ iOS notification permissions result: $result');
+        print('✅ iOS permissions: $result');
       }
     } catch (e) {
-      print('❌ Error requesting iOS permissions: $e');
+      print('❌ iOS permissions error: $e');
     }
   }
 
-  Future<void> _handleNotificationTap(NotificationResponse response) async {
-    try {
-      print('📱 Notification tapped with payload: ${response.payload}');
-      
-      if (response.payload != null) {
-        print('Handling notification tap with payload: ${response.payload}');
-      }
-    } catch (e) {
-      print('❌ Error handling notification tap: $e');
-    }
-  }
-
-  /// Show local notification from anywhere in your app
-  /// Example: NotificationService().showLocalNotification(
-  ///   title: 'Order Update',
-  ///   body: 'Your order has been shipped'
-  /// );
   Future<void> showLocalNotification({
     required String title,
     required String body,
     String? payload,
-    int? id,
   }) async {
     try {
-      int notificationId = id ?? DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      
+      final id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+      // Android notification
       const AndroidNotificationDetails androidDetails =
           AndroidNotificationDetails(
         'high_importance_channel',
-        'High Importance Notifications',
-        importance: Importance.max,
+        'Important Notifications',
+        importance: Importance.high,
         priority: Priority.high,
         playSound: true,
         enableVibration: true,
-        icon: '@mipmap/ic_launcher',
-        autoCancel: true,
-        ongoing: false,
       );
 
-      const DarwinNotificationDetails iOSDetails =
+      // iOS notification - MUST have presentAlert: true
+      const DarwinNotificationDetails iosDetails =
           DarwinNotificationDetails(
         presentAlert: true,
         presentBadge: true,
         presentSound: true,
         sound: 'default',
-        threadIdentifier: 'antiquesoft_notifications',
-        categoryIdentifier: 'general',
-        badgeNumber: 1,
       );
 
-      const NotificationDetails platformChannelSpecifics = NotificationDetails(
+      const NotificationDetails details = NotificationDetails(
         android: androidDetails,
-        iOS: iOSDetails,
+        iOS: iosDetails,
       );
 
       await _flutterLocalNotificationsPlugin.show(
-        notificationId,
+        id,
         title,
         body,
-        platformChannelSpecifics,
+        details,
         payload: payload,
       );
 
-      print('✅ Local notification shown: $title - $body');
-      print('📱 Platform: ${Platform.isIOS ? 'iOS' : 'Android'}');
+      print('✅ Notification sent: $title');
     } catch (e) {
-      print('❌ Error showing notification: $e');
+      print('❌ Show notification error: $e');
     }
   }
 
-  /// Cancel all notifications
   Future<void> cancelAllNotifications() async {
-    try {
-      await _flutterLocalNotificationsPlugin.cancelAll();
-      print('✅ All notifications cancelled');
-    } catch (e) {
-      print('❌ Failed to cancel notifications: $e');
-    }
-  }
-
-  /// Cancel specific notification by ID
-  Future<void> cancelNotification(int id) async {
-    try {
-      await _flutterLocalNotificationsPlugin.cancel(id);
-      print('✅ Notification $id cancelled');
-    } catch (e) {
-      print('❌ Failed to cancel notification $id: $e');
-    }
-  }
-
-  /// Get all pending notifications
-  Future<List<PendingNotificationRequest>> getPendingNotifications() async {
-    try {
-      return await _flutterLocalNotificationsPlugin.pendingNotificationRequests();
-    } catch (e) {
-      print('❌ Failed to get pending notifications: $e');
-      return [];
-    }
-  }
-
-  /// Check if notifications are enabled
-  Future<bool> areNotificationsEnabled() async {
-    try {
-      if (Platform.isAndroid) {
-        final AndroidFlutterLocalNotificationsPlugin? androidPlugin =
-            _flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
-                AndroidFlutterLocalNotificationsPlugin>();
-        return await androidPlugin?.areNotificationsEnabled() ?? false;
-      } else if (Platform.isIOS) {
-        final IOSFlutterLocalNotificationsPlugin? iosPlugin =
-            _flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
-                IOSFlutterLocalNotificationsPlugin>();
-        return await iosPlugin?.requestPermissions(
-          alert: true,
-          badge: true,
-          sound: true,
-        ) ?? false;
-      }
-      return false;
-    } catch (e) {
-      print('❌ Failed to check notification permissions: $e');
-      return false;
-    }
+    await _flutterLocalNotificationsPlugin.cancelAll();
   }
 }
