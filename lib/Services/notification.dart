@@ -46,6 +46,11 @@ class NotificationService {
         await _createNotificationChannel();
       }
 
+      // Request permissions on iOS
+      if (Platform.isIOS) {
+        await _requestIOSPermissions();
+      }
+
       print('✅ NotificationService initialized successfully');
     } catch (e) {
       print('❌ NotificationService initialization failed: $e');
@@ -70,6 +75,25 @@ class NotificationService {
     if (androidPlugin != null) {
       await androidPlugin.createNotificationChannel(channel);
       print('✅ Android notification channel created');
+    }
+  }
+
+  Future<void> _requestIOSPermissions() async {
+    try {
+      final IOSFlutterLocalNotificationsPlugin? iosPlugin =
+          _flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>();
+
+      if (iosPlugin != null) {
+        final bool? result = await iosPlugin.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+        print('✅ iOS notification permissions result: $result');
+      }
+    } catch (e) {
+      print('❌ Error requesting iOS permissions: $e');
     }
   }
 
@@ -120,6 +144,7 @@ class NotificationService {
         sound: 'default',
         threadIdentifier: 'antiquesoft_notifications',
         categoryIdentifier: 'general',
+        badgeNumber: 1,
       );
 
       const NotificationDetails platformChannelSpecifics = NotificationDetails(
@@ -136,6 +161,7 @@ class NotificationService {
       );
 
       print('✅ Local notification shown: $title - $body');
+      print('📱 Platform: ${Platform.isIOS ? 'iOS' : 'Android'}');
     } catch (e) {
       print('❌ Error showing notification: $e');
     }

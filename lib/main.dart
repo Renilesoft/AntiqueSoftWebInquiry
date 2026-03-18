@@ -9,6 +9,7 @@ import 'package:antiquewebemquiry/view/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/Provider.dart';
+import 'dart:io' show Platform;
 import 'viewmodel/login_viewmodel.dart';
 
 // Initialize local notifications plugin
@@ -57,6 +58,23 @@ Future<void> initializeLocalNotifications() async {
     onDidReceiveNotificationResponse: onDidReceiveNotificationResponse,
   );
 
+  // Request iOS permissions explicitly
+  if (Platform.isIOS) {
+    try {
+      final bool? result = await flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          );
+      print('✅ iOS notification permissions requested: $result');
+    } catch (e) {
+      print('❌ Error requesting iOS permissions: $e');
+    }
+  }
+
   print('✅ Local notifications initialized');
 }
 
@@ -90,7 +108,7 @@ class AntiqueSoftApp extends StatelessWidget {
             displaySmall: TextStyle(fontFamily: 'DM Sans', fontWeight: FontWeight.bold, fontStyle: FontStyle.italic),
           ),
         ),
-        home: const NotificationTestPage(),
+        home: const SplashScreen(),
         routes: {
           '/notification-test': (context) => const NotificationTestPage(),
         },
