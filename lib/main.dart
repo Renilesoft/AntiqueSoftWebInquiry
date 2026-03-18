@@ -6,7 +6,7 @@ import 'package:antiquewebemquiry/Global/username.dart';
 import 'package:antiquewebemquiry/Global/vendorid.dart';
 import 'package:antiquewebemquiry/app_data.dart';
 import 'package:antiquewebemquiry/view/splash_screen.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -34,27 +34,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ FIREBASE ONLY ON ANDROID
-  if (Platform.isAndroid) {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-
-    await FirebaseCrashlytics.instance
-        .setCrashlyticsCollectionEnabled(true);
-        
-    FlutterError.onError =
-        FirebaseCrashlytics.instance.recordFlutterFatalError;
-
-    PlatformDispatcher.instance.onError = (error, stack) {
-      FirebaseCrashlytics.instance.recordError(
-        error,
-        stack,
-        fatal: true,
-      );
-      return true;
-    };
-  }
 
   await Username.loadusername();
   await Vendor.loadVendorId();

@@ -31,7 +31,7 @@ dependencies:
   logger: ^2.6.0
   firebase_messaging:
     path: my_plugins/firebase_messaging
-  firebase_crashlytics: ^3.4.9
+
   dio: ^5.9.0
 
 dev_dependencies:
