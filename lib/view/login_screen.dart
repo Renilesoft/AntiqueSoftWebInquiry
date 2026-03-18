@@ -1,4 +1,5 @@
 import 'package:antiquewebemquiry/app_data.dart';
+import 'package:antiquewebemquiry/Services/notification.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -345,7 +346,41 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
                     ),
                   ),
                 ),
-             ),
+              ),
+        
+        SizedBox(height: getCheckboxSpacing()),
+        
+        // Test Notification Button
+        SizedBox(
+          width: double.infinity,
+          height: screenWidth < 600 ? 52 : 60,
+          child: OutlinedButton(
+            onPressed: () async {
+              await NotificationService().showLocalNotification(
+                title: "Test Notification",
+                body: "This is a test local notification"
+              );
+            },
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(
+                color: Color(0xFFFF8500),
+                width: 2,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(screenWidth < 600 ? 26 : 30),
+              ),
+            ),
+            child: Text(
+              'Test Notification',
+              style: TextStyle(
+                color: const Color(0xFFFF8500),
+                fontSize: screenWidth < 600 ? 16 : 18,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }

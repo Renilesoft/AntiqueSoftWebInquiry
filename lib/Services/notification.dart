@@ -179,6 +179,52 @@ class NotificationService {
     await _showNotification(message);
   }
 
+  // Simple method to show local notification directly (call this from your API)
+  Future<void> showLocalNotification({
+    required String title,
+    required String body,
+  }) async {
+    try {
+      int notificationId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      
+      const AndroidNotificationDetails androidDetails =
+          AndroidNotificationDetails(
+        'high_importance_channel',
+        'High Importance Notifications',
+        importance: Importance.max,
+        priority: Priority.high,
+        playSound: true,
+        enableVibration: true,
+      );
+
+      const DarwinNotificationDetails iOSDetails =
+          DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+        sound: 'default',
+      );
+
+      const NotificationDetails platformChannelSpecifics = NotificationDetails(
+        android: androidDetails,
+        iOS: iOSDetails,
+      );
+
+      await _flutterLocalNotificationsPlugin.show(
+        notificationId,
+        title,
+        body,
+        platformChannelSpecifics,
+      );
+
+      // ignore: avoid_print
+      print('✅ Local notification shown: $title - $body');
+    } catch (e) {
+      // ignore: avoid_print
+      print('❌ Error showing notification: $e');
+    }
+  }
+
   // Method to cancel all notifications
   Future<void> cancelAllNotifications() async {
     try {

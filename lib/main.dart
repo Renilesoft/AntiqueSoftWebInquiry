@@ -9,10 +9,11 @@ import 'package:antiquewebemquiry/app_data.dart';
 
 import 'package:antiquewebemquiry/view/splash_screen.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
+
 import 'package:provider/provider.dart';
 import 'dart:io' show Platform;
 import 'Services/notification.dart';
