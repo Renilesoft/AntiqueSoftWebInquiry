@@ -3,6 +3,7 @@ import 'package:antiquewebemquiry/Global/yearlytotalquantity.dart';
 import 'package:antiquewebemquiry/Global/yearlytotalsales.dart';
 import 'package:antiquewebemquiry/Global/username.dart';
 import 'package:antiquewebemquiry/Global/vendorid.dart';
+import 'package:antiquewebemquiry/Services/notification_test_page.dart';
 import 'package:antiquewebemquiry/app_data.dart';
 import 'package:antiquewebemquiry/view/splash_screen.dart';
 import 'package:flutter/material.dart';
@@ -89,7 +90,10 @@ class AntiqueSoftApp extends StatelessWidget {
             displaySmall: TextStyle(fontFamily: 'DM Sans', fontWeight: FontWeight.bold, fontStyle: FontStyle.italic),
           ),
         ),
-        home: const SplashScreen(),
+        home: const NotificationTestPage(),
+        routes: {
+          '/notification-test': (context) => const NotificationTestPage(),
+        },
       ),
     );
   }
