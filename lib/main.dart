@@ -1,4 +1,3 @@
-
 import 'package:antiquewebemquiry/Global/sales.dart';
 import 'package:antiquewebemquiry/Global/yearlytotalquantity.dart';
 import 'package:antiquewebemquiry/Global/yearlytotalsales.dart';
@@ -19,7 +18,7 @@ import 'viewmodel/login_viewmodel.dart';
 
 // Background message handler
 @pragma('vm:entry-point')
- // Ensures iOS handles background properly
+// Ensures Android handles background properly
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
     await Firebase.initializeApp();
@@ -35,25 +34,27 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  await FirebaseCrashlytics.instance
-      .setCrashlyticsCollectionEnabled(true);
-      
-  FlutterError.onError =
-      FirebaseCrashlytics.instance.recordFlutterFatalError;
-
-  PlatformDispatcher.instance.onError = (error, stack) {
-    FirebaseCrashlytics.instance.recordError(
-      error,
-      stack,
-      fatal: true,
+  // ✅ FIREBASE ONLY ON ANDROID
+  if (Platform.isAndroid) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
     );
-    return true;
-  };
 
+    await FirebaseCrashlytics.instance
+        .setCrashlyticsCollectionEnabled(true);
+        
+    FlutterError.onError =
+        FirebaseCrashlytics.instance.recordFlutterFatalError;
+
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(
+        error,
+        stack,
+        fatal: true,
+      );
+      return true;
+    };
+  }
 
   await Username.loadusername();
   await Vendor.loadVendorId();
@@ -63,7 +64,6 @@ Future<void> main() async {
   await DailyTotalItems.load();
   await MonthlyTotalSales.load();
   await DailyTotalSales.load();
-
 
   runApp(const AntiqueSoftApp());
 }
@@ -87,73 +87,81 @@ class _AntiqueSoftAppState extends State<AntiqueSoftApp> {
 
   Future<void> _initializeApp() async {
     try {
-      // ignore: avoid_print
-      print('Initializing Firebase...');
-      
-      // Initialize Firebase with timeout
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      ).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          throw Exception('Firebase initialization timed out after 30 seconds');
-        },
-      );
-      
-      // ignore: avoid_print
-      print('Firebase initialized successfully');
+      // ✅ FIREBASE SETUP ONLY ON ANDROID
+      if (Platform.isAndroid) {
+        // ignore: avoid_print
+        print('Initializing Firebase on Android...');
+        
+        // Initialize Firebase with timeout
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        ).timeout(
+          const Duration(seconds: 30),
+          onTimeout: () {
+            throw Exception('Firebase initialization timed out after 30 seconds');
+          },
+        );
+        
+        // ignore: avoid_print
+        print('Firebase initialized successfully');
 
-      // Setup FCM background message handler
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-      // ignore: avoid_print
-      print('Background message handler set');
+        // Setup FCM background message handler
+        FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+        // ignore: avoid_print
+        print('Background message handler set');
+      } else {
+        // ignore: avoid_print
+        print('iOS detected - Skipping Firebase initialization');
+      }
 
-      // Setup push notifications
-      await _setupPushNotifications();
-      // ignore: avoid_print
-      print('Push notifications setup complete');
+      // Setup push notifications (Android only)
+      if (Platform.isAndroid) {
+        await _setupPushNotifications();
+        // ignore: avoid_print
+        print('Push notifications setup complete');
+      }
 
       if (mounted) {
         setState(() {
         });
       }
       
-      } catch (e, stackTrace) {
-    
+    } catch (e, stackTrace) {
+      // ignore: avoid_print
+      print('App initialization failed: $e');
+      // ignore: avoid_print
+      print('Stack trace: $stackTrace');
 
-    // ignore: avoid_print
-    print('App initialization failed: $e');
-    // ignore: avoid_print
-    print('Stack trace: $stackTrace');
-
-    if (mounted) {
-      setState(() {
-        _error = true;
-        _errorMessage = e.toString();
-      });
+      if (mounted) {
+        setState(() {
+          _error = true;
+          _errorMessage = e.toString();
+        });
+      }
     }
   }
-}
 
   Future<void> _setupPushNotifications() async {
     try {
+      // ✅ THIS ONLY RUNS ON ANDROID
+      if (!Platform.isAndroid) {
+        return;
+      }
+
       FirebaseMessaging messaging = FirebaseMessaging.instance;
 
-      
       NotificationSettings settings = await messaging.requestPermission(
         alert: true,
         badge: true,
         sound: true,
-        
         announcement: false,
         carPlay: false,
         criticalAlert: false,
         provisional: false,
       );
 
-      
       // ignore: avoid_print
-      print('iOS permission status: ${settings.authorizationStatus}');
+      print('Android permission status: ${settings.authorizationStatus}');
 
       if (settings.authorizationStatus == AuthorizationStatus.authorized) {
         // ignore: avoid_print
@@ -166,18 +174,6 @@ class _AntiqueSoftAppState extends State<AntiqueSoftApp> {
         print('Notification permissions denied');
       }
 
-      // CRITICAL FOR iOS: Configure foreground notification presentation options
-      if (Platform.isIOS) {
-        await messaging.setForegroundNotificationPresentationOptions(
-          alert: true,  
-          badge: true,  
-          sound: true,  
-        );
-        
-        print(' iOS foreground notification options configured');
-      }
-
- 
       NotificationService notificationService = NotificationService();
       await notificationService.init();
       // ignore: avoid_print
@@ -194,30 +190,19 @@ class _AntiqueSoftAppState extends State<AntiqueSoftApp> {
       }
 
       // Listen for foreground messages
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-      // ignore: avoid_print
-      print('Foreground message received: ${message.notification?.title}');
-      // ignore: avoid_print
-      print('Platform: ${Platform.isIOS ? 'iOS' : 'Android'}');
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+        // ignore: avoid_print
+        print('Foreground message received: ${message.notification?.title}');
 
-      try {
-        // Only show local notification manually when app is in foreground.
-        if (Platform.isAndroid) {
-          // On Android, Firebase automatically displays notification in background,
-          // so only show manually when app is in foreground.
+        try {
           if (message.notification != null) {
             await notificationService.showNotification(message);
           }
-        } else if (Platform.isIOS) {
-          // iOS doesn't show notification automatically in foreground
-          // even with presentation options. So show manually.
-          await notificationService.showNotification(message);
+        } catch (e) {
+          // ignore: avoid_print
+          print('Failed to show notification: $e');
         }
-      } catch (e) {
-        // ignore: avoid_print
-        print('Failed to show notification: $e');
-      }
-    });
+      });
 
       // Listen for when user taps notification while app is in background
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {

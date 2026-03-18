@@ -6,10 +6,10 @@
   <key>aps-environment</key>
   <string>production</string>
 
-  <key>UIBackgroundModes</key>
+  <!-- <key>UIBackgroundModes</key>
   <array>
     <string>remote-notification</string>
-  </array>
+  </array> -->
 </dict>
 </plist>
 
