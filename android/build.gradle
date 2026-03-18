@@ -4,11 +4,11 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        // Google Services (Firebase)
-        classpath 'com.google.gms:google-services:4.4.1'
+        // Google Services (Firebase) - Commented out (Using local notifications instead)
+        // classpath 'com.google.gms:google-services:4.4.1'
 
-        // Firebase Crashlytics
-        classpath 'com.google.firebase:firebase-crashlytics-gradle:2.9.9'
+        // Firebase Crashlytics - Commented out (Using local notifications instead)
+        // classpath 'com.google.firebase:firebase-crashlytics-gradle:2.9.9'
     }
 }
 
@@ -32,4 +32,3 @@ subprojects {
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
-

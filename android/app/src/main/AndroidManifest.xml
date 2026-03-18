@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET"/>
@@ -22,7 +23,8 @@
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">
         
-        <service 
+        <!-- Firebase Messaging Service (Commented - Using local notifications instead) -->
+        <!-- <service 
             android:name="com.google.firebase.messaging.FirebaseMessagingService"
             android:exported="true"
             android:permission="android.permission.BIND_JOB_SERVICE"
@@ -30,12 +32,13 @@
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT"/>
             </intent-filter>
-        </service>
+        </service> -->
 
-        <receiver
+        <!-- Firebase Instance ID Receiver (Commented - Using local notifications instead) -->
+        <!-- <receiver
             android:name="com.google.firebase.iid.FirebaseInstanceIdInternalReceiver"
             android:exported="true">
-        </receiver>
+        </receiver> -->
     
         <!-- Google map key start -->
         <!-- <meta-data
@@ -67,9 +70,10 @@
             android:name="flutterEmbedding"
             android:value="2"/>
 
-        <meta-data
+        <!-- Firebase Default Notification Channel (Commented - Using local notifications instead) -->
+        <!-- <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="@string/default_notification_channel_id" />
+            android:value="@string/default_notification_channel_id" /> -->
     </application>
 
     <queries>

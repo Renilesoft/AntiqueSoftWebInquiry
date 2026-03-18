@@ -3,7 +3,7 @@ import 'package:antiquewebemquiry/app_data.dart';
 import 'package:antiquewebemquiry/user_data.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:firebase_messaging/firebase_messaging.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import '../Constants/baseurl.dart';
@@ -108,13 +108,13 @@ class LoginViewModel extends ChangeNotifier {
     final storeCode = storeCodeController.text.trim();
     final username = usernameController.text.trim();
     final password = passwordController.text.trim();
-    final fcmToken = await FirebaseMessaging.instance.getToken();
+    //final fcmToken = await FirebaseMessaging.instance.getToken();
 
-    if (fcmToken == null) {
-      _setLoading(false);
-      debugPrint('Failed to get FCM token');
-      return false;
-    }
+    // if (fcmToken == null) {
+    //   _setLoading(false);
+    //   debugPrint('Failed to get FCM token');
+    //   return false;
+    // }
 
     final response = await http.post(
       Uri.parse("$baseurl/Home/login"),
@@ -123,7 +123,7 @@ class LoginViewModel extends ChangeNotifier {
         "location": storeCode,
         "username": username,
         "password": encryptString(password),
-        "fcmToken": fcmToken,
+        //"fcmToken": fcmToken,
       }),
     ).timeout(const Duration(seconds: 10));
 

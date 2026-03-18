@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:antiquewebemquiry/Constants/baseurl.dart';
 import 'package:antiquewebemquiry/app_data.dart';
 import 'package:antiquewebemquiry/viewmodel/login_viewmodel.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
+// import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:quickalert/quickalert.dart';
 import 'package:http/http.dart' as http;
@@ -105,14 +105,14 @@ class DrawerMenu extends StatelessWidget {
     final prefs = await SharedPreferences.getInstance();
     final location = prefs.getString('location') ?? '';
     final username = prefs.getString('username') ?? '';
-    String? fcmToken = await FirebaseMessaging.instance.getToken();
+    //String? fcmToken = null;
 
     final url = Uri.parse('$baseurl/Home/logout');
     final headers = {'Content-Type': 'application/json'};
     final body = jsonEncode({
       "location": location,
       "username": username,
-      "fcmToken": fcmToken,
+      //"fcmToken": fcmToken,
     });
 
     try {
