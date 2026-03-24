@@ -810,18 +810,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         const Spacer(),
                         Row(
                           children: [
-                            IconButton(
-                              icon: const Icon(Icons.notifications_outlined),
-                              color: Colors.black,
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => NotificationScreen(),
-                                  ),
-                                );
-                              },
-                            ),
+                            // IconButton(
+                            //   icon: const Icon(Icons.notifications_outlined),
+                            //   color: Colors.black,
+                            //   onPressed: () {
+                            //     Navigator.push(
+                            //       context,
+                            //       MaterialPageRoute(
+                            //         builder: (_) => NotificationScreen(),
+                            //       ),
+                            //     );
+                            //   },
+                            // ),
                             Stack(
                               children: [
                                 IconButton(
