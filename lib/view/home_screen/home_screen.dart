@@ -1,5 +1,3 @@
-// ignore_for_file: avoid_print
-
 import 'package:antiquewebemquiry/Constants/baseurl.dart';
 import 'package:antiquewebemquiry/Global/location.dart';
 import 'package:antiquewebemquiry/Global/username.dart';
@@ -63,6 +61,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   int _notificationCount = 0;
   bool _isLoadingNotifications = false;
   int _lastNotificationCount = 0;
+  
+  // ✅ NEW: Store the last processed notification IDs to avoid duplicates
+  Set<String> _processedNotificationIds = {};
+  
+  // ✅ NEW: Store the last fetch time to compare with sale times
+  DateTime? _lastFetchTime;
+  
+  // ✅ NEW: Time threshold in seconds - only notify for sales within this window
+  static const int NOTIFICATION_TIME_THRESHOLD = 65; // ~1 minute to account for polling interval
 
   String vendorName = 'Loading...';
   bool isLoadingVendorName = true;
@@ -142,6 +149,27 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _notificationTimer = null;
   }
 
+  // ✅ NEW: Helper method to check if a sale time is recent (within threshold)
+  bool _isSaleTimeRecent(DateTime saleDateTime) {
+    final DateTime now = DateTime.now();
+    final Duration timeDifference = now.difference(saleDateTime);
+    
+    print('🕐 [TIME CHECK] Sale time: $saleDateTime');
+    print('🕐 [TIME CHECK] Current time: $now');
+    print('🕐 [TIME CHECK] Difference: ${timeDifference.inSeconds} seconds');
+    print('🕐 [TIME CHECK] Threshold: $NOTIFICATION_TIME_THRESHOLD seconds');
+    
+    // Only notify if sale happened within the last NOTIFICATION_TIME_THRESHOLD seconds
+    return timeDifference.inSeconds >= 0 && timeDifference.inSeconds <= NOTIFICATION_TIME_THRESHOLD;
+  }
+
+  // ✅ NEW: Helper method to generate unique ID for a notification
+  String _generateNotificationId(Map<String, dynamic> sale) {
+    final String itemDescription = sale['itemDescription'] ?? '';
+    final String dateTime = sale['dateTime'] ?? '';
+    return '$itemDescription-$dateTime';
+  }
+
   Future<void> _fetchNotifications() async {
     if (_isLoadingNotifications) return;
 
@@ -174,41 +202,66 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         print('🔍 [FETCH] Current count: $newSalesCount');
         print('🔍 [FETCH] Sales list length: ${salesList.length}');
 
-        // ✅ Check for NEW sales
-        if (newSalesCount > _lastNotificationCount && salesList.isNotEmpty) {
-          print('✅ [NOTIFICATION] NEW SALES DETECTED!');
-          print('✅ [NOTIFICATION] Count increased from $_lastNotificationCount to $newSalesCount');
-
-          // Show notification for each sale
-          for (var i = 0; i < salesList.length; i++) {
-            var sale = salesList[i];
-            final String itemDescription = sale['itemDescription'] ?? 'Unknown Item';
-            final int quantity = sale['quantity'] ?? 0;
-            final String dateTime = sale['dateTime'] ?? DateTime.now().toString();
-
-            print('✅ [NOTIFICATION] Sale $i: $itemDescription (Qty: $quantity)');
-
+        // ✅ UPDATED: Filter sales to only process recent ones
+        if (salesList.isNotEmpty) {
+          List<Map<String, dynamic>> recentSales = [];
+          
+          for (var sale in salesList) {
+            final String notificationId = _generateNotificationId(sale);
+            final String saleTimeString = sale['dateTime'] ?? '';
+            
+            // Parse the sale time
             try {
-              await NotificationService().showLocalNotification(
-                title: 'New Sales!',
-                body: '$itemDescription\nQuantity: $quantity',
-                payload: jsonEncode(sale),
-              );
-              print('✅ [NOTIFICATION] Sent notification for: $itemDescription');
+              final DateTime saleDateTime = DateTime.parse(saleTimeString);
+              
+              // ✅ Check if sale is recent AND not already processed
+              if (_isSaleTimeRecent(saleDateTime) && !_processedNotificationIds.contains(notificationId)) {
+                recentSales.add(sale);
+                _processedNotificationIds.add(notificationId);
+                print('✅ [NOTIFICATION] Sale marked for notification: $notificationId');
+              } else if (_processedNotificationIds.contains(notificationId)) {
+                print('ℹ️ [NOTIFICATION] Sale already processed (duplicate): $notificationId');
+              } else {
+                print('ℹ️ [NOTIFICATION] Sale is not recent (outside time window): $notificationId');
+              }
             } catch (e) {
-              print('❌ [NOTIFICATION] Error: $e');
+              print('❌ [NOTIFICATION] Error parsing sale time: $e');
             }
           }
 
-          // ✅ Update last notification count
-          _lastNotificationCount = newSalesCount;
-          print('✅ [NOTIFICATION] Updated count to: $_lastNotificationCount');
-        } else {
-          print('ℹ️ [NOTIFICATION] No new sales (count: $newSalesCount vs last: $_lastNotificationCount)');
+          // ✅ Only show notifications for recent sales
+          if (recentSales.isNotEmpty) {
+            print('✅ [NOTIFICATION] Showing notifications for ${recentSales.length} recent sale(s)');
+            
+            for (var i = 0; i < recentSales.length; i++) {
+              var sale = recentSales[i];
+              final String itemDescription = sale['itemDescription'] ?? 'Unknown Item';
+              final int quantity = sale['quantity'] ?? 0;
+              final String dateTime = sale['dateTime'] ?? DateTime.now().toString();
+
+              print('✅ [NOTIFICATION] Sale $i: $itemDescription (Qty: $quantity) at $dateTime');
+
+              try {
+                await NotificationService().showLocalNotification(
+                  title: 'New Sales!',
+                  body: '$itemDescription\nQuantity: $quantity',
+                  payload: jsonEncode(sale),
+                );
+                print('✅ [NOTIFICATION] Sent notification for: $itemDescription');
+              } catch (e) {
+                print('❌ [NOTIFICATION] Error sending notification: $e');
+              }
+            }
+          } else {
+            print('ℹ️ [NOTIFICATION] No recent sales to notify');
+          }
         }
 
+        // ✅ Update notification count and fetch time
         setState(() {
           _notificationCount = newSalesCount;
+          _lastNotificationCount = newSalesCount;
+          _lastFetchTime = DateTime.now();
           _isLoadingNotifications = false;
         });
       } else {
