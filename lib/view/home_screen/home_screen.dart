@@ -60,16 +60,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Timer? _notificationTimer;
   int _notificationCount = 0;
   bool _isLoadingNotifications = false;
-  int _lastNotificationCount = 0;
-  
-  // ✅ NEW: Store the last processed notification IDs to avoid duplicates
-  Set<String> _processedNotificationIds = {};
-  
-  // ✅ NEW: Store the last fetch time to compare with sale times
-  DateTime? _lastFetchTime;
-  
-  // ✅ NEW: Time threshold in seconds - only notify for sales within this window
-  static const int NOTIFICATION_TIME_THRESHOLD = 65; // ~1 minute to account for polling interval
+  bool _isNotificationRequestPending = false;
+  Set<String> _notifiedSalesIds = {};
+
+  static const int FAST_POLLING_INTERVAL_SECONDS = 1;
+  static const int REQUEST_TIMEOUT_SECONDS = 8;
 
   String vendorName = 'Loading...';
   bool isLoadingVendorName = true;
@@ -134,160 +129,155 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _fetchDailySalesStats();
     _fetchMonthlySalesStats();
     _fetchYearlyStats();
+    
     _fetchNotifications();
     _startNotificationTimer();
   }
 
   void _startNotificationTimer() {
-    _notificationTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      _fetchNotifications();
-    });
+    _notificationTimer = Timer.periodic(
+      const Duration(seconds: FAST_POLLING_INTERVAL_SECONDS),
+      (timer) {
+        _fetchNotifications();
+      },
+    );
+    debugPrint('🚀 [NOTIFICATION] Polling started - every $FAST_POLLING_INTERVAL_SECONDS seconds');
   }
 
   void _stopNotificationTimer() {
     _notificationTimer?.cancel();
     _notificationTimer = null;
-  }
-
-  // ✅ NEW: Helper method to check if a sale time is recent (within threshold)
-  bool _isSaleTimeRecent(DateTime saleDateTime) {
-    final DateTime now = DateTime.now();
-    final Duration timeDifference = now.difference(saleDateTime);
-    
-    print('🕐 [TIME CHECK] Sale time: $saleDateTime');
-    print('🕐 [TIME CHECK] Current time: $now');
-    print('🕐 [TIME CHECK] Difference: ${timeDifference.inSeconds} seconds');
-    print('🕐 [TIME CHECK] Threshold: $NOTIFICATION_TIME_THRESHOLD seconds');
-    
-    // Only notify if sale happened within the last NOTIFICATION_TIME_THRESHOLD seconds
-    return timeDifference.inSeconds >= 0 && timeDifference.inSeconds <= NOTIFICATION_TIME_THRESHOLD;
-  }
-
-  // ✅ NEW: Helper method to generate unique ID for a notification
-  String _generateNotificationId(Map<String, dynamic> sale) {
-    final String itemDescription = sale['itemDescription'] ?? '';
-    final String dateTime = sale['dateTime'] ?? '';
-    return '$itemDescription-$dateTime';
+    debugPrint('🛑 [NOTIFICATION] Polling stopped');
   }
 
   Future<void> _fetchNotifications() async {
-    if (_isLoadingNotifications) return;
+    if (_isNotificationRequestPending || _isLoadingNotifications) {
+      return;
+    }
 
-    setState(() {
-      _isLoadingNotifications = true;
-    });
+    _isNotificationRequestPending = true;
 
     try {
-      final String url = '$baseurl/Home/newSalesAndNotify?location=${Location.location}&vendorId=${Vendor.vendorid}';
+      final String url =
+          '$baseurl/Home/newSalesAndNotify?location=${Location.location}&vendorId=${Vendor.vendorid}';
 
-      print('🔍 [FETCH] Fetching from: $url');
-      print('🔍 [FETCH] Last count: $_lastNotificationCount');
+      debugPrint('📡 [FETCH] Polling API for new sales...');
 
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      );
-
-      print('🔍 [FETCH] Status: ${response.statusCode}');
-      print('🔍 [FETCH] Body: ${response.body}');
+      final response = await http
+          .get(
+            Uri.parse(url),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+          )
+          .timeout(
+            const Duration(seconds: REQUEST_TIMEOUT_SECONDS),
+            onTimeout: () {
+              throw TimeoutException('API request timed out');
+            },
+          );
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
-        final int newSalesCount = data['salesCount'] ?? 0;
         final List<dynamic> salesList = data['sales'] ?? [];
 
-        print('🔍 [FETCH] Current count: $newSalesCount');
-        print('🔍 [FETCH] Sales list length: ${salesList.length}');
+        debugPrint('📊 [FETCH] Got ${salesList.length} sales from API');
 
-        // ✅ UPDATED: Filter sales to only process recent ones
         if (salesList.isNotEmpty) {
-          List<Map<String, dynamic>> recentSales = [];
-          
+          final List<Map<String, dynamic>> salesToNotify = [];
+
           for (var sale in salesList) {
-            final String notificationId = _generateNotificationId(sale);
-            final String saleTimeString = sale['dateTime'] ?? '';
-            
-            // Parse the sale time
-            try {
-              final DateTime saleDateTime = DateTime.parse(saleTimeString);
-              
-              // ✅ Check if sale is recent AND not already processed
-              if (_isSaleTimeRecent(saleDateTime) && !_processedNotificationIds.contains(notificationId)) {
-                recentSales.add(sale);
-                _processedNotificationIds.add(notificationId);
-                print('✅ [NOTIFICATION] Sale marked for notification: $notificationId');
-              } else if (_processedNotificationIds.contains(notificationId)) {
-                print('ℹ️ [NOTIFICATION] Sale already processed (duplicate): $notificationId');
-              } else {
-                print('ℹ️ [NOTIFICATION] Sale is not recent (outside time window): $notificationId');
-              }
-            } catch (e) {
-              print('❌ [NOTIFICATION] Error parsing sale time: $e');
+            final int notificationStatus = sale['notificationStatus'] ?? 0;
+            final String dateTime = sale['dateTime'] ?? '';
+            final String itemDescription = sale['itemDescription'] ?? '';
+            final String saleKey = '${dateTime}_$itemDescription';
+
+            if (notificationStatus == 1 && !_notifiedSalesIds.contains(saleKey)) {
+              salesToNotify.add(sale);
+              _notifiedSalesIds.add(saleKey);
+              debugPrint('✅ [NEW] Sale ready to notify: $itemDescription at $dateTime');
+            } else if (_notifiedSalesIds.contains(saleKey)) {
+              debugPrint('⏭️ [SKIP] Sale already notified: $itemDescription');
+            } else {
+              debugPrint('⏭️ [SKIP] Sale not ready (status: $notificationStatus): $itemDescription');
             }
           }
 
-          // ✅ Only show notifications for recent sales
-          if (recentSales.isNotEmpty) {
-            print('✅ [NOTIFICATION] Showing notifications for ${recentSales.length} recent sale(s)');
-            
-            for (var i = 0; i < recentSales.length; i++) {
-              var sale = recentSales[i];
-              final String itemDescription = sale['itemDescription'] ?? 'Unknown Item';
-              final int quantity = sale['quantity'] ?? 0;
-              final String dateTime = sale['dateTime'] ?? DateTime.now().toString();
-
-              print('✅ [NOTIFICATION] Sale $i: $itemDescription (Qty: $quantity) at $dateTime');
-
-              try {
-                await NotificationService().showLocalNotification(
-                  title: 'New Sales!',
-                  body: '$itemDescription\nQuantity: $quantity',
-                  payload: jsonEncode(sale),
-                );
-                print('✅ [NOTIFICATION] Sent notification for: $itemDescription');
-              } catch (e) {
-                print('❌ [NOTIFICATION] Error sending notification: $e');
-              }
-            }
-          } else {
-            print('ℹ️ [NOTIFICATION] No recent sales to notify');
+          if (salesToNotify.isNotEmpty) {
+            debugPrint('🎯 [ACTION] Sending notifications for ${salesToNotify.length} sale(s)');
+            _showAllNotificationsInstantly(salesToNotify);
           }
         }
 
-        // ✅ Update notification count and fetch time
-        setState(() {
-          _notificationCount = newSalesCount;
-          _lastNotificationCount = newSalesCount;
-          _lastFetchTime = DateTime.now();
-          _isLoadingNotifications = false;
-        });
+        if (mounted) {
+          setState(() {
+            _notificationCount = data['salesCount'] ?? 0;
+          });
+        }
       } else {
-        print('❌ [FETCH] Failed: ${response.statusCode}');
-        setState(() {
-          _isLoadingNotifications = false;
-        });
+        debugPrint('❌ [ERROR] API returned: ${response.statusCode}');
       }
+    } on TimeoutException {
+      debugPrint('⏱️ [TIMEOUT] API request timeout after $REQUEST_TIMEOUT_SECONDS seconds');
     } catch (e) {
-      print('❌ [FETCH] Exception: $e');
-      setState(() {
-        _isLoadingNotifications = false;
-      });
+      debugPrint('❌ [ERROR] Fetch exception: $e');
+    } finally {
+      _isNotificationRequestPending = false;
+      _isLoadingNotifications = false;
     }
   }
 
+  void _showAllNotificationsInstantly(List<Map<String, dynamic>> sales) {
+    debugPrint('📬 [DISPATCH] Sending ${sales.length} notification(s) with staggered delays...');
+
+    for (var i = 0; i < sales.length; i++) {
+      final sale = sales[i];
+      final String itemDescription = sale['itemDescription'] ?? 'New Sale';
+      final int quantity = sale['quantity'] ?? 0;
+      final int delayMs = i * 500;
+
+      _sendNotificationAsync(itemDescription, quantity, sale, i, sales.length, delayMs);
+    }
+  }
+
+  void _sendNotificationAsync(String itemDescription, int quantity, Map<String, dynamic> sale, int index, int total, int delayMs) {
+    Future.delayed(Duration(milliseconds: delayMs), () async {
+      try {
+        final String notificationId = '${DateTime.now().millisecondsSinceEpoch}_${index}_${sale['dateTime'] ?? ''}';
+        final String saleDateTime = sale['dateTime'] ?? '';
+        
+        await NotificationService().showLocalNotification(
+          title: '🎉 New Sale! (#${index + 1}/$total)',
+          body: '$itemDescription\nQuantity: $quantity\n$saleDateTime',
+          payload: jsonEncode({
+            ...sale,
+            'notificationId': notificationId,
+          }),
+        );
+        debugPrint('✅ [SENT] Sale #${index + 1}/$total: $itemDescription (Qty: $quantity) [ID: $notificationId] [Delay: ${delayMs}ms]');
+      } catch (e) {
+        debugPrint('❌ [ERROR] Failed to send notification: $e');
+      }
+    });
+  }
+
   Future<void> _refreshPage() async {
-    await _fetchVendorName();
-    await _fetchMarketMessage();
-    await _fetchDailySalesStats();
-    await _fetchDailySalesData();
-    await _fetchMonthlySalesData();
-    await _fetchYearlySalesData();
-    await _fetchMonthlySalesStats();
-    await _fetchYearlyStats();
-    setState(() {});
+    final futures = [
+      _fetchVendorName(),
+      _fetchMarketMessage(),
+      _fetchDailySalesStats(),
+      _fetchDailySalesData(),
+      _fetchMonthlySalesData(),
+      _fetchYearlySalesData(),
+      _fetchMonthlySalesStats(),
+      _fetchYearlyStats(),
+    ];
+
+    await Future.wait(futures);
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _fetchYearlyStats() async {
@@ -299,33 +289,51 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       final DateTime now = DateTime.now();
       final int currentYearParam = now.year;
 
-      final String url = '$baseurl/Home/YearlySales?location=${Location.location}&vendorId=${Vendor.vendorid}&year=$currentYearParam';
+      final String url =
+          '$baseurl/Home/YearlySales?location=${Location.location}&vendorId=${Vendor.vendorid}&year=$currentYearParam';
 
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      );
+      final response = await http
+          .get(
+            Uri.parse(url),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+          )
+          .timeout(const Duration(seconds: REQUEST_TIMEOUT_SECONDS));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
 
-        setState(() {
-          double totalSalesAmount = (data['totalSalesAmount'] ?? 0.0).toDouble();
-          String formattedSales = NumberFormat.currency(
-            symbol: '\$',
-            decimalDigits: 2,
-          ).format(totalSalesAmount);
+        if (mounted) {
+          setState(() {
+            double totalSalesAmount = (data['totalSalesAmount'] ?? 0.0).toDouble();
+            String formattedSales = NumberFormat.currency(
+              symbol: '\$',
+              decimalDigits: 2,
+            ).format(totalSalesAmount);
 
-          yearlyStats = {
-            'totalItems': NumberFormat('#,###').format(data['totalQuantitySold'] ?? 0),
-            'totalSales': formattedSales,
-          };
-          isLoadingYearlyStats = false;
-        });
+            yearlyStats = {
+              'totalItems': NumberFormat('#,###').format(data['totalQuantitySold'] ?? 0),
+              'totalSales': formattedSales,
+            };
+            isLoadingYearlyStats = false;
+          });
+        }
       } else {
+        if (mounted) {
+          setState(() {
+            yearlyStats = {
+              'totalItems': '0',
+              'totalSales': '\$0.00',
+            };
+            isLoadingYearlyStats = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ [ERROR] YearlyStats: $e');
+      if (mounted) {
         setState(() {
           yearlyStats = {
             'totalItems': '0',
@@ -334,15 +342,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           isLoadingYearlyStats = false;
         });
       }
-    } catch (e) {
-      setState(() {
-        yearlyStats = {
-          'totalItems': '0',
-          'totalSales': '\$0.00',
-        };
-        isLoadingYearlyStats = false;
-      });
-      print('Error: $e');
     }
   }
 
@@ -353,35 +352,54 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
     try {
       final DateTime now = DateTime.now();
-      final String currentDate = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final String currentDate =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
-      final String url = '$baseurl/Home/DailySales?location=${Location.location}&vendorId=${Vendor.vendorid}&startDate=${currentDate}T00:00:00&endDate=${currentDate}T23:59:59';
+      final String url =
+          '$baseurl/Home/DailySales?location=${Location.location}&vendorId=${Vendor.vendorid}&startDate=${currentDate}T00:00:00&endDate=${currentDate}T23:59:59';
 
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      );
+      final response = await http
+          .get(
+            Uri.parse(url),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+          )
+          .timeout(const Duration(seconds: REQUEST_TIMEOUT_SECONDS));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
 
-        setState(() {
-          double totalSalesAmount = (data['totalSales'] ?? 0.0).toDouble();
-          String formattedSales = NumberFormat.currency(
-            symbol: '\$',
-            decimalDigits: 2,
-          ).format(totalSalesAmount);
+        if (mounted) {
+          setState(() {
+            double totalSalesAmount = (data['totalSales'] ?? 0.0).toDouble();
+            String formattedSales = NumberFormat.currency(
+              symbol: '\$',
+              decimalDigits: 2,
+            ).format(totalSalesAmount);
 
-          dailyStats = {
-            'totalItems': NumberFormat('#,###').format(data['totalItems'] ?? 0),
-            'totalSales': formattedSales,
-          };
-          isLoadingDailyStats = false;
-        });
+            dailyStats = {
+              'totalItems': NumberFormat('#,###').format(data['totalItems'] ?? 0),
+              'totalSales': formattedSales,
+            };
+            isLoadingDailyStats = false;
+          });
+        }
       } else {
+        if (mounted) {
+          setState(() {
+            dailyStats = {
+              'totalItems': '0',
+              'totalSales': '\$0.00',
+            };
+            isLoadingDailyStats = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ [ERROR] DailySalesStats: $e');
+      if (mounted) {
         setState(() {
           dailyStats = {
             'totalItems': '0',
@@ -390,15 +408,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           isLoadingDailyStats = false;
         });
       }
-    } catch (e) {
-      setState(() {
-        dailyStats = {
-          'totalItems': '0',
-          'totalSales': '\$0.00',
-        };
-        isLoadingDailyStats = false;
-      });
-      print('Error: $e');
     }
   }
 
@@ -406,31 +415,40 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     try {
       final String url = '$baseurl/Home/getMarketMessage?location=${Location.location}';
 
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      );
+      final response = await http
+          .get(
+            Uri.parse(url),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+          )
+          .timeout(const Duration(seconds: REQUEST_TIMEOUT_SECONDS));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
-        setState(() {
-          marketMessage = data['marketMessage'] ?? 'No message available';
-          isLoadingMarketMessage = false;
-        });
+        if (mounted) {
+          setState(() {
+            marketMessage = data['marketMessage'] ?? 'No message available';
+            isLoadingMarketMessage = false;
+          });
+        }
       } else {
+        if (mounted) {
+          setState(() {
+            marketMessage = 'Failed to load message';
+            isLoadingMarketMessage = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ [ERROR] MarketMessage: $e');
+      if (mounted) {
         setState(() {
-          marketMessage = 'Failed to load message';
+          marketMessage = 'Error loading message';
           isLoadingMarketMessage = false;
         });
       }
-    } catch (e) {
-      setState(() {
-        marketMessage = 'Error loading message';
-        isLoadingMarketMessage = false;
-      });
     }
   }
 
@@ -441,35 +459,54 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
     try {
       final DateTime now = DateTime.now();
-      final String currentMonth = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+      final String currentMonth =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}';
 
-      final String url = '$baseurl/Home/MonthlySales?location=${Location.location}&vendorId=${Vendor.vendorid}&startMonth=$currentMonth&endMonth=$currentMonth';
+      final String url =
+          '$baseurl/Home/MonthlySales?location=${Location.location}&vendorId=${Vendor.vendorid}&startMonth=$currentMonth&endMonth=$currentMonth';
 
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      );
+      final response = await http
+          .get(
+            Uri.parse(url),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+          )
+          .timeout(const Duration(seconds: REQUEST_TIMEOUT_SECONDS));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
 
-        setState(() {
-          double totalSalesAmount = (data['totalSales'] ?? 0.0).toDouble();
-          String formattedSales = NumberFormat.currency(
-            symbol: '\$',
-            decimalDigits: 2,
-          ).format(totalSalesAmount);
+        if (mounted) {
+          setState(() {
+            double totalSalesAmount = (data['totalSales'] ?? 0.0).toDouble();
+            String formattedSales = NumberFormat.currency(
+              symbol: '\$',
+              decimalDigits: 2,
+            ).format(totalSalesAmount);
 
-          monthlyStats = {
-            'totalItems': NumberFormat('#,###').format(data['totalItems'] ?? 0),
-            'totalSales': formattedSales,
-          };
-          isLoadingMonthlyStats = false;
-        });
+            monthlyStats = {
+              'totalItems': NumberFormat('#,###').format(data['totalItems'] ?? 0),
+              'totalSales': formattedSales,
+            };
+            isLoadingMonthlyStats = false;
+          });
+        }
       } else {
+        if (mounted) {
+          setState(() {
+            monthlyStats = {
+              'totalItems': '0',
+              'totalSales': '\$0.00',
+            };
+            isLoadingMonthlyStats = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ [ERROR] MonthlySalesStats: $e');
+      if (mounted) {
         setState(() {
           monthlyStats = {
             'totalItems': '0',
@@ -478,15 +515,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           isLoadingMonthlyStats = false;
         });
       }
-    } catch (e) {
-      setState(() {
-        monthlyStats = {
-          'totalItems': '0',
-          'totalSales': '\$0.00',
-        };
-        isLoadingMonthlyStats = false;
-      });
-      print('Error: $e');
     }
   }
 
@@ -499,15 +527,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       final DateTime now = DateTime.now();
       final int currentYearParam = now.year;
 
-      final String url = '$baseurl/Home/YearlySales?location=${Location.location}&vendorId=${Vendor.vendorid}&year=$currentYearParam';
+      final String url =
+          '$baseurl/Home/YearlySales?location=${Location.location}&vendorId=${Vendor.vendorid}&year=$currentYearParam';
 
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      );
+      final response = await http
+          .get(
+            Uri.parse(url),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+          )
+          .timeout(const Duration(seconds: REQUEST_TIMEOUT_SECONDS));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -524,7 +555,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           salesByMonth[month] = totalSales;
         }
 
-        List<String> monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        List<String> monthNames = [
+          'January',
+          'February',
+          'March',
+          'April',
+          'May',
+          'June',
+          'July',
+          'August',
+          'September',
+          'October',
+          'November',
+          'December'
+        ];
 
         for (int i = 0; i < monthNames.length; i++) {
           String monthName = monthNames[i];
@@ -537,19 +581,25 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             : 0;
         maxYearlySales = maxValue > 0 ? (maxValue * 1.2).ceilToDouble() : 100000.0;
 
-        setState(() {
-          isLoadingYearlySales = false;
-        });
+        if (mounted) {
+          setState(() {
+            isLoadingYearlySales = false;
+          });
+        }
       } else {
+        if (mounted) {
+          setState(() {
+            isLoadingYearlySales = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ [ERROR] YearlySalesData: $e');
+      if (mounted) {
         setState(() {
           isLoadingYearlySales = false;
         });
       }
-    } catch (e) {
-      setState(() {
-        isLoadingYearlySales = false;
-      });
-      print('Error: $e');
     }
   }
 
@@ -560,17 +610,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
     try {
       final DateTime now = DateTime.now();
-      final String currentDate = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final String currentDate =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
-      final String url = '$baseurl/Home/graphSalesDaily?location=${Location.location}&vendorId=${Vendor.vendorid}&date=$currentDate';
+      final String url =
+          '$baseurl/Home/graphSalesDaily?location=${Location.location}&vendorId=${Vendor.vendorid}&date=$currentDate';
 
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      );
+      final response = await http
+          .get(
+            Uri.parse(url),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+          )
+          .timeout(const Duration(seconds: REQUEST_TIMEOUT_SECONDS));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -597,7 +651,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
           final DateTime parsedDate = DateTime.parse(date);
           final String monthName = _getMonthName(parsedDate.month);
-          final String fullLabel = '$dayAbbr\n($monthName ${parsedDate.day})\n${parsedDate.year}';
+          final String fullLabel =
+              '$dayAbbr\n($monthName ${parsedDate.day})\n${parsedDate.year}';
 
           dailySalesSpots.add(FlSpot(i.toDouble(), totalSales));
           dailySalesLabels.add(simpleLabel);
@@ -606,26 +661,42 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
         maxDailySales = 100.0;
 
-        setState(() {
-          isLoadingDailySales = false;
-        });
+        if (mounted) {
+          setState(() {
+            isLoadingDailySales = false;
+          });
+        }
       } else {
+        if (mounted) {
+          setState(() {
+            isLoadingDailySales = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ [ERROR] DailySalesData: $e');
+      if (mounted) {
         setState(() {
           isLoadingDailySales = false;
         });
       }
-    } catch (e) {
-      setState(() {
-        isLoadingDailySales = false;
-      });
-      print('Error: $e');
     }
   }
 
   String _getMonthName(int month) {
     const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
     ];
     return months[month - 1];
   }
@@ -658,17 +729,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
     try {
       final DateTime now = DateTime.now();
-      final String currentMonthParam = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+      final String currentMonthParam =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}';
 
-      final String url = '$baseurl/Home/graphSalesMonthly?location=${Location.location}&vendorId=${Vendor.vendorid}&month=$currentMonthParam';
+      final String url =
+          '$baseurl/Home/graphSalesMonthly?location=${Location.location}&vendorId=${Vendor.vendorid}&month=$currentMonthParam';
 
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      );
+      final response = await http
+          .get(
+            Uri.parse(url),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+          )
+          .timeout(const Duration(seconds: REQUEST_TIMEOUT_SECONDS));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -689,19 +764,25 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             : 0;
         maxMonthlySales = maxValue > 0 ? (maxValue * 1.2).ceilToDouble() : 10000.0;
 
-        setState(() {
-          isLoadingMonthlySales = false;
-        });
+        if (mounted) {
+          setState(() {
+            isLoadingMonthlySales = false;
+          });
+        }
       } else {
+        if (mounted) {
+          setState(() {
+            isLoadingMonthlySales = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ [ERROR] MonthlySalesData: $e');
+      if (mounted) {
         setState(() {
           isLoadingMonthlySales = false;
         });
       }
-    } catch (e) {
-      setState(() {
-        isLoadingMonthlySales = false;
-      });
-      print('Error: $e');
     }
   }
 
@@ -714,34 +795,43 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   Future<void> _fetchVendorName() async {
     try {
-      final String url = '$baseurl/Home/getClientName?location=${Location.location}&email=${Uri.encodeComponent(Username.username)}';
+      final String url =
+          '$baseurl/Home/getClientName?location=${Location.location}&email=${Uri.encodeComponent(Username.username)}';
 
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      );
+      final response = await http
+          .get(
+            Uri.parse(url),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+          )
+          .timeout(const Duration(seconds: REQUEST_TIMEOUT_SECONDS));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
-        setState(() {
-          vendorName = data['vendorName'] ?? 'User';
-          isLoadingVendorName = false;
-        });
+        if (mounted) {
+          setState(() {
+            vendorName = data['vendorName'] ?? 'User';
+            isLoadingVendorName = false;
+          });
+        }
       } else {
+        if (mounted) {
+          setState(() {
+            vendorName = 'User';
+            isLoadingVendorName = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ [ERROR] VendorName: $e');
+      if (mounted) {
         setState(() {
           vendorName = 'User';
           isLoadingVendorName = false;
         });
       }
-    } catch (e) {
-      setState(() {
-        vendorName = 'User';
-        isLoadingVendorName = false;
-      });
-      print('Error: $e');
     }
   }
 
@@ -810,18 +900,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         const Spacer(),
                         Row(
                           children: [
-                            // IconButton(
-                            //   icon: const Icon(Icons.notifications_outlined),
-                            //   color: Colors.black,
-                            //   onPressed: () {
-                            //     Navigator.push(
-                            //       context,
-                            //       MaterialPageRoute(
-                            //         builder: (_) => NotificationScreen(),
-                            //       ),
-                            //     );
-                            //   },
-                            // ),
                             Stack(
                               children: [
                                 IconButton(
@@ -860,7 +938,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
                   if (_showWelcomeNotification)
                     WelcomeNotification(
-                      message: isLoadingMarketMessage ? 'Loading message...' : marketMessage,
+                      message: isLoadingMarketMessage
+                          ? 'Loading message...'
+                          : marketMessage,
                       onClose: _closeWelcomeNotification,
                       onOpen: _openWelcomeNotification,
                     ),
@@ -887,7 +967,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                     Flexible(
                                       flex: 3,
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Row(
                                             children: [
@@ -901,7 +982,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                                   ),
                                                   textScaleFactor: 1.0,
                                                   maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                               ),
                                               if (isLoadingVendorName) ...[
@@ -909,9 +991,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                                 const SizedBox(
                                                   width: 16,
                                                   height: 16,
-                                                  child: CircularProgressIndicator(
+                                                  child:
+                                                      CircularProgressIndicator(
                                                     strokeWidth: 2,
-                                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                                    valueColor:
+                                                        AlwaysStoppedAnimation<
+                                                            Color>(
                                                       Color(0xFF2D3142),
                                                     ),
                                                   ),
@@ -950,15 +1035,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                 ),
                                 child: LayoutBuilder(
                                   builder: (context, constraints) {
-                                    double buttonWidth = (constraints.maxWidth - (2 * 12)) / 3;
+                                    double buttonWidth =
+                                        (constraints.maxWidth - (2 * 12)) / 3;
                                     return Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
-                                        _buildFilterButton('Daily', buttonWidth),
+                                        _buildFilterButton(
+                                            'Daily', buttonWidth),
                                         const SizedBox(width: 12),
-                                        _buildFilterButton('Monthly', buttonWidth),
+                                        _buildFilterButton(
+                                            'Monthly', buttonWidth),
                                         const SizedBox(width: 12),
-                                        _buildFilterButton('Yearly', buttonWidth),
+                                        _buildFilterButton(
+                                            'Yearly', buttonWidth),
                                       ],
                                     );
                                   },
@@ -967,14 +1057,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               SizedBox(height: screenSize.height * 0.03),
                               Center(
                                 child: SizedBox(
-                                  width: isTablet ? screenSize.width * 0.4 : 155,
+                                  width: isTablet
+                                      ? screenSize.width * 0.4
+                                      : 155,
                                   height: screenSize.height * 0.06,
                                   child: ElevatedButton(
                                     onPressed: _toggleReport,
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFFFF6B00),
+                                      backgroundColor:
+                                          const Color(0xFFFF6B00),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(30),
+                                        borderRadius:
+                                            BorderRadius.circular(30),
                                       ),
                                     ),
                                     child: const FittedBox(
@@ -1004,7 +1098,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                     Expanded(
                                       child: _buildStatCard(
                                         'Total Items Sold',
-                                        statistics[selectedFilter]!['totalItems']!,
+                                        statistics[selectedFilter]![
+                                            'totalItems']!,
                                         screenSize,
                                       ),
                                     ),
@@ -1012,7 +1107,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                     Expanded(
                                       child: _buildStatCard(
                                         'Total Sales Amount',
-                                        statistics[selectedFilter]!['totalSales']!,
+                                        statistics[selectedFilter]![
+                                            'totalSales']!,
                                         screenSize,
                                       ),
                                     ),
@@ -1040,7 +1136,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   animation: _animation,
                   builder: (context, child) {
                     return Positioned(
-                      top: _animation.value * MediaQuery.of(context).padding.top,
+                      top: _animation.value *
+                          MediaQuery.of(context).padding.top,
                       left: 0,
                       right: 0,
                       bottom: 0,
@@ -1296,7 +1393,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildNavItem(String iconPath, String label, bool isSelected, Size screenSize) {
+  Widget _buildNavItem(
+      String iconPath, String label, bool isSelected, Size screenSize) {
     double iconSize = screenSize.width > 600 ? 40 : 40;
     return GestureDetector(
       onTap: () {
@@ -1335,7 +1433,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget _buildChart(Size screenSize) {
     final Map<String, Map<String, dynamic>> chartConfigs = {
       'Daily': {
-        'labels': dailySalesLabels.isNotEmpty ? dailySalesLabels : ['Sun\n(Jun 15)', 'Mon\n(Jun 16)', 'Tue\n(Jun 17)', 'Wed\n(Jun 18)', 'Thu\n(Jun 19)', 'Fri\n(Jun 20)', 'Sat\n(Jun 21)'],
+        'labels': dailySalesLabels.isNotEmpty
+            ? dailySalesLabels
+            : [
+                'Sun\n(Jun 15)',
+                'Mon\n(Jun 16)',
+                'Tue\n(Jun 17)',
+                'Wed\n(Jun 18)',
+                'Thu\n(Jun 19)',
+                'Fri\n(Jun 20)',
+                'Sat\n(Jun 21)'
+              ],
         'maxY': 500.0,
         'interval': 100.0,
         'spots': dailySalesSpots.isNotEmpty ? dailySalesSpots : <FlSpot>[],
@@ -1344,31 +1452,35 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         'labels': monthlySalesLabels,
         'maxY': 5000.0,
         'interval': 1000.0,
-        'spots': monthlySalesSpots.isNotEmpty ? monthlySalesSpots : const [
-          FlSpot(0, 2000),
-          FlSpot(1, 4000),
-          FlSpot(2, 7000),
-          FlSpot(3, 5000),
-        ],
+        'spots': monthlySalesSpots.isNotEmpty
+            ? monthlySalesSpots
+            : const [
+                FlSpot(0, 2000),
+                FlSpot(1, 4000),
+                FlSpot(2, 7000),
+                FlSpot(3, 5000),
+              ],
       },
       'Yearly': {
         'labels': yearlySalesLabels,
         'maxY': 20000.0,
         'interval': 5000.0,
-        'spots': yearlySalesSpots.isNotEmpty ? yearlySalesSpots : const [
-          FlSpot(0, 15000),
-          FlSpot(1, 25000),
-          FlSpot(2, 45000),
-          FlSpot(3, 35000),
-          FlSpot(4, 55000),
-          FlSpot(5, 75000),
-          FlSpot(6, 65000),
-          FlSpot(7, 85000),
-          FlSpot(8, 70000),
-          FlSpot(9, 90000),
-          FlSpot(10, 80000),
-          FlSpot(11, 95000),
-        ],
+        'spots': yearlySalesSpots.isNotEmpty
+            ? yearlySalesSpots
+            : const [
+                FlSpot(0, 15000),
+                FlSpot(1, 25000),
+                FlSpot(2, 45000),
+                FlSpot(3, 35000),
+                FlSpot(4, 55000),
+                FlSpot(5, 75000),
+                FlSpot(6, 65000),
+                FlSpot(7, 85000),
+                FlSpot(8, 70000),
+                FlSpot(9, 90000),
+                FlSpot(10, 80000),
+                FlSpot(11, 95000),
+              ],
       },
     };
 
@@ -1382,16 +1494,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       width: chartWidth,
       height: screenSize.height * 0.40,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(0, screenSize.height * 0.013, screenSize.width * 0.03, screenSize.height * 0.010),
+        padding: EdgeInsets.fromLTRB(
+            0,
+            screenSize.height * 0.013,
+            screenSize.width * 0.03,
+            screenSize.height * 0.010),
         child: isLoadingDailySales && selectedFilter == 'Daily'
             ? const Center(
                 child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00BFA6)),
+                  valueColor:
+                      AlwaysStoppedAnimation<Color>(Color(0xFF00BFA6)),
                 ),
               )
             : (selectedFilter == 'Daily' && currentConfig['spots'].isEmpty) ||
-                (selectedFilter == 'Monthly' && monthlySalesSpots.isEmpty) ||
-                (selectedFilter == 'Yearly' && yearlySalesSpots.isEmpty)
+                    (selectedFilter == 'Monthly' &&
+                        monthlySalesSpots.isEmpty) ||
+                    (selectedFilter == 'Yearly' && yearlySalesSpots.isEmpty)
                 ? const Center(
                     child: Text(
                       'No sales data available',
@@ -1427,7 +1545,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             reservedSize: screenSize.width * 0.124,
                             getTitlesWidget: (value, meta) {
                               return Padding(
-                                padding: EdgeInsets.only(right: screenSize.width * 0.01),
+                                padding: EdgeInsets.only(
+                                    right: screenSize.width * 0.01),
                                 child: Text(
                                   value.toInt().toString(),
                                   style: TextStyle(
@@ -1447,11 +1566,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             showTitles: true,
                             reservedSize: screenSize.height * 0.060,
                             getTitlesWidget: (value, meta) {
-                              if (value.toInt() >= currentConfig['labels'].length) {
+                              if (value.toInt() >=
+                                  currentConfig['labels'].length) {
                                 return const SizedBox.shrink();
                               }
                               return Padding(
-                                padding: EdgeInsets.only(top: screenSize.height * 0.010),
+                                padding: EdgeInsets.only(
+                                    top: screenSize.height * 0.010),
                                 child: Text(
                                   currentConfig['labels'][value.toInt()],
                                   style: TextStyle(
@@ -1475,7 +1596,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       ),
                       borderData: FlBorderData(
                         show: true,
-                        border: Border.all(color: const Color(0xFFE5E5E5)),
+                        border: Border.all(
+                            color: const Color(0xFFE5E5E5)),
                       ),
                       lineBarsData: [
                         LineChartBarData(
@@ -1496,48 +1618,66 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           ),
                           belowBarData: BarAreaData(
                             show: true,
-                            color: const Color(0xFF00BFA6).withOpacity(0.1),
+                            color: const Color(0xFF00BFA6)
+                                .withOpacity(0.1),
                           ),
                         ),
                       ],
                       minX: 0,
-                      maxX: (currentConfig['labels'].length - 1).toDouble(),
+                      maxX:
+                          (currentConfig['labels'].length - 1).toDouble(),
                       minY: 0,
                       maxY: currentConfig['maxY'],
                       lineTouchData: LineTouchData(
-                        touchTooltipData: LineTouchTooltipData(
-                          tooltipBgColor: Colors.black.withOpacity(0.8),
+                        touchTooltipData:
+                            LineTouchTooltipData(
+                          tooltipBgColor:
+                              Colors.black.withOpacity(0.8),
                           tooltipRoundedRadius: 8,
-                          getTooltipItems: (List<LineBarSpot> touchedSpots) {
-                            return touchedSpots.map((LineBarSpot touchedSpot) {
+                          getTooltipItems:
+                              (List<LineBarSpot> touchedSpots) {
+                            return touchedSpots
+                                .map((LineBarSpot touchedSpot) {
                               String label;
-                              if (selectedFilter == 'Daily' && dailySalesFullLabels.isNotEmpty) {
+                              if (selectedFilter == 'Daily' &&
+                                  dailySalesFullLabels.isNotEmpty) {
                                 int index = touchedSpot.x.toInt();
-                                if (index < dailySalesFullLabels.length) {
+                                if (index <
+                                    dailySalesFullLabels.length) {
                                   label = dailySalesFullLabels[index];
                                 } else {
-                                  label = 'Day ${index + 1}';
+                                  label =
+                                      'Day ${index + 1}';
                                 }
                               } else {
-                                label = currentConfig['labels'][touchedSpot.x.toInt()];
-                                label = label.replaceAll('\n', ' ');
+                                label = currentConfig['labels']
+                                    [touchedSpot.x.toInt()];
+                                label =
+                                    label.replaceAll('\n', ' ');
                               }
                               return LineTooltipItem(
                                 '$label\n\$${touchedSpot.y.toStringAsFixed(2)}',
                                 TextStyle(
                                   color: Colors.white,
-                                  fontSize: screenSize.width > 600 ? 16 : 14,
+                                  fontSize:
+                                      screenSize.width > 600
+                                          ? 16
+                                          : 14,
                                 ),
                               );
                             }).toList();
                           },
                         ),
-                        touchCallback: (FlTouchEvent event, LineTouchResponse? touchResponse) {
-                          if (event is FlTapUpEvent || event is FlPanUpdateEvent) {
+                        touchCallback: (FlTouchEvent event,
+                            LineTouchResponse? touchResponse) {
+                          if (event is FlTapUpEvent ||
+                              event is FlPanUpdateEvent) {
                             setState(() {});
                           }
                         },
-                        getTouchedSpotIndicator: (LineChartBarData barData, List<int> spotIndexes) {
+                        getTouchedSpotIndicator:
+                            (LineChartBarData barData,
+                                List<int> spotIndexes) {
                           return spotIndexes.map((spotIndex) {
                             return TouchedSpotIndicatorData(
                               const FlLine(
@@ -1546,12 +1686,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               ),
                               FlDotData(
                                 show: true,
-                                getDotPainter: (spot, percent, barData, index) {
+                                getDotPainter:
+                                    (spot, percent, barData,
+                                        index) {
                                   return FlDotCirclePainter(
-                                    radius: screenSize.width * 0.015,
+                                    radius:
+                                        screenSize.width *
+                                            0.015,
                                     color: Colors.white,
                                     strokeWidth: 3,
-                                    strokeColor: const Color(0xFF00BFA6),
+                                    strokeColor: const Color(
+                                        0xFF00BFA6),
                                   );
                                 },
                               ),
