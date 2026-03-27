@@ -272,8 +272,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     Future.microtask(() async {
       try {
         await NotificationService().showLocalNotification(
-          title: '🎉 New Sale!',
-          body: '$itemDescription\nQuantity: $quantity',
+          title: 'New Sale!',
+          body: 'You have got 1 new Sale!',
           payload: jsonEncode(sale),
         );
         debugPrint('✅ [SENT] Sale #${index + 1}/$total: $itemDescription (Qty: $quantity)');
