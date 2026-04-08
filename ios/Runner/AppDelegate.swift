@@ -1,5 +1,6 @@
 import UIKit
 import Flutter
+import Firebase
 import UserNotifications
 
 @UIApplicationMain
@@ -10,37 +11,55 @@ import UserNotifications
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
 
+    // 🔥 Initialize Firebase
+    FirebaseApp.configure()
+
     GeneratedPluginRegistrant.register(with: self)
 
-    // Setup notification delegate
+    // 🔔 Set notification delegate
     if #available(iOS 10.0, *) {
       UNUserNotificationCenter.current().delegate = self
     }
 
-    // Request notification permissions
+    // 🔔 Request permission
     if #available(iOS 10.0, *) {
-      UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-        if granted {
-          DispatchQueue.main.async {
-            UIApplication.shared.registerForRemoteNotifications()
-          }
-        }
+      UNUserNotificationCenter.current().requestAuthorization(
+        options: [.alert, .sound, .badge]
+      ) { granted, error in
+        print("Permission granted: \(granted)")
       }
     }
+
+    // 🔥 Register for APNS
+    application.registerForRemoteNotifications()
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
-  // Handle notification when app is in foreground (iOS 10+)
+  // 🔥 PASS APNS TOKEN TO FIREBASE (CRITICAL)
+  override func application(
+    _ application: UIApplication,
+    didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+  ) {
+    Messaging.messaging().apnsToken = deviceToken
+    print("🍎 APNS Token set to Firebase")
+  }
+
+  // 🔥 Handle failure
+  override func application(
+    _ application: UIApplication,
+    didFailToRegisterForRemoteNotificationsWithError error: Error
+  ) {
+    print("❌ Failed to register for notifications: \(error)")
+  }
+
+  // 🔔 Foreground notification
   @available(iOS 10.0, *)
   override func userNotificationCenter(
     _ center: UNUserNotificationCenter,
     willPresent notification: UNNotification,
     withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
   ) {
-    let content = notification.request.content
-
-    // Present notification even when app is in foreground
     if #available(iOS 14.0, *) {
       completionHandler([.banner, .sound, .badge])
     } else {
@@ -48,22 +67,13 @@ import UserNotifications
     }
   }
 
-  // Handle notification tap/response (iOS 10+)
+  // 🔔 Notification tap
   @available(iOS 10.0, *)
   override func userNotificationCenter(
     _ center: UNUserNotificationCenter,
     didReceive response: UNNotificationResponse,
     withCompletionHandler completionHandler: @escaping () -> Void
   ) {
-    let notification = response.notification
-    let content = notification.request.content
-
-    // Handle notification tap here
-    // You can extract payload and navigate if needed
-    if let payload = content.userInfo as? [AnyHashable: Any] {
-      // Handle the payload
-    }
-
     completionHandler()
   }
 }

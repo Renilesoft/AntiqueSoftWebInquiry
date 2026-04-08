@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:antiquewebemquiry/Constants/baseurl.dart';
 import 'package:antiquewebemquiry/app_data.dart';
 import 'package:antiquewebemquiry/viewmodel/login_viewmodel.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:quickalert/quickalert.dart';
 import 'package:http/http.dart' as http;
@@ -106,15 +107,15 @@ class DrawerMenu extends StatelessWidget {
     final username = prefs.getString('username') ?? '';
     
     // ✅ Get device UUID instead of FCM token
-    final deviceUUID = await LoginViewModel.getDeviceUUID();
-    print('📱 Logout with UUID: $deviceUUID');
+    final fcmToken = await FirebaseMessaging.instance.getToken();
+    print('📱 Logout with UUID: $fcmToken');
 
     final url = Uri.parse('$baseurl/Home/logout');
     final headers = {'Content-Type': 'application/json'};
     final body = jsonEncode({
       "location": location,
       "username": username,
-      "fcmToken": deviceUUID,  // ✅ Changed from fcmToken to deviceUUID
+      "fcmToken": fcmToken,  // ✅ Changed from fcmToken to deviceUUID
     });
 
     try {
