@@ -1,6 +1,6 @@
-ENV['COCOAPODS_DISABLE_STATS'] = 'true'
-
 platform :ios, '12.0'
+
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
 project 'Runner', {
   'Debug' => :debug,
@@ -9,13 +9,9 @@ project 'Runner', {
 }
 
 def flutter_root
-  generated_xcode_build_settings_path = File.expand_path(
-    File.join('..', 'Flutter', 'Generated.xcconfig'),
-    __FILE__
-  )
-
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
   unless File.exist?(generated_xcode_build_settings_path)
-    raise "#{generated_xcode_build_settings_path} must exist."
+    raise "#{generated_xcode_build_settings_path} must exist. Run flutter pub get first"
   end
 
   File.foreach(generated_xcode_build_settings_path) do |line|
@@ -26,23 +22,12 @@ def flutter_root
   raise "FLUTTER_ROOT not found"
 end
 
-require File.expand_path(
-  File.join('packages', 'flutter_tools', 'bin', 'podhelper'),
-  flutter_root
-)
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
 
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  # 🔥 KEEP THIS
   use_frameworks! :linkage => :static
-
-  # ❌ REMOVE use_modular_headers!
-
-  # 🔥 FORCE FIREBASE MODULAR
-  pod 'Firebase', :modular_headers => true
-  pod 'FirebaseCore', :modular_headers => true
-  pod 'FirebaseMessaging', :modular_headers => true
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
@@ -52,14 +37,30 @@ post_install do |installer|
     flutter_additional_ios_build_settings(target)
 
     target.build_configurations.each do |config|
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       config.build_settings['ENABLE_BITCODE'] = 'NO'
-      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
-
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
       config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
         '$(inherited)',
-        'PERMISSION_NOTIFICATIONS=1',
+        'FIREBASE_MESSAGING_ENABLED=1'
       ]
+      
+      if target.name == 'firebase_messaging'
+        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+        config.build_settings['DEFINES_MODULE'] = 'NO'
+      end
+    end
+  end
+
+  installer.pods_project.targets.each do |target|
+    if target.name == 'firebase_messaging'
+      target.build_configurations.each do |config|
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
+          '$(inherited)',
+          'PB_FIELD_32BIT=1',
+          'PB_REPETITION_32BIT=1'
+        ]
+      end
     end
   end
 end
