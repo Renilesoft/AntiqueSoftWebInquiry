@@ -34,10 +34,10 @@ require File.expand_path(
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  # 🔥 CRITICAL FIX FOR FIREBASE
+  # 🔥 REQUIRED FOR FIREBASE (STATIC FRAMEWORKS)
   use_frameworks! :linkage => :static
 
-  # Helps avoid header conflicts
+  # 🔥 FIXES NON-MODULAR HEADER ISSUES
   use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
@@ -63,6 +63,9 @@ post_install do |installer|
         '$(inherited)',
         'PERMISSION_NOTIFICATIONS=1',
       ]
+
+      # 🔥🔥🔥 CRITICAL FIX FOR YOUR ERROR
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
 
     end
   end
