@@ -1,4 +1,4 @@
-platform :ios, '15.0'
+platform :ios, '13.0'
 
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
@@ -29,9 +29,12 @@ require File.expand_path(
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  use_frameworks! :linkage => :static   # ← static is REQUIRED for Flutter plugins
+  use_frameworks! :linkage => :static
 
-  # Apply modular headers ONLY to Firebase pods, not everything
+  # ← ADD THIS — the umbrella pod was missing, causing Firebase.h not found
+  pod 'Firebase', :modular_headers => true
+
+  # Individual Firebase pods
   pod 'FirebaseCore', :modular_headers => true
   pod 'FirebaseCoreInternal', :modular_headers => true
   pod 'FirebaseMessaging', :modular_headers => true
@@ -50,12 +53,14 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
       config.build_settings['ENABLE_BITCODE'] = 'NO'
       config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
         '$(inherited)',
         'PERMISSION_NOTIFICATIONS=1'
       ]
+      # Allows Firebase.h umbrella header imports in modular context
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
     end
   end
 end
