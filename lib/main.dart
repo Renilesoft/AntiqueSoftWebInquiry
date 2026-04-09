@@ -57,7 +57,7 @@ Future<void> main() async {
   print('🔐 Requesting notification permissions...');
   await requestNotificationPermission();
 
-  // STEP 5 — Fetch FCM token (iOS: waits for APNs token first)
+  // STEP 5 — Fetch FCM token (with smart APNS handling for cross-platform dev)
   print('🔥 Fetching FCM token...');
   await getFCMToken();
 
@@ -114,57 +114,74 @@ Future<void> requestNotificationPermission() async {
 }
 
 // ─────────────────────────────────────────────────────────────
-// GET FCM TOKEN
-// iOS: APNs token must resolve before FCM token is available
+// GET FCM TOKEN — FIXED FOR WINDOWS/CODEMAGIC DEVELOPMENT
+// ─────────────────────────────────────────────────────────────
+// KEY CHANGES:
+// 1. Don't block FCM fetch if APNS is null (normal on Windows/simulator)
+// 2. Platform detection: only fetch APNS on iOS platform
+// 3. Don't return early — always attempt FCM token fetch
 // ─────────────────────────────────────────────────────────────
 Future<void> getFCMToken() async {
   try {
     if (Platform.isIOS) {
-      print('🍎 iOS detected — fetching APNs token first...');
+      print('🍎 iOS platform detected — attempting APNS token fetch...');
 
-      // APNs token can take a moment — retry up to 5 times
+      // Try to get APNs token (takes time on real devices, may be null on simulator)
       String? apnsToken;
       for (int i = 0; i < 5; i++) {
         apnsToken = await FirebaseMessaging.instance.getAPNSToken();
-        if (apnsToken != null) break;
-        print('⏳ APNs token not ready, retrying (${i + 1}/5)...');
+        if (apnsToken != null) {
+          print('✅ APNs token obtained: $apnsToken');
+          break;
+        }
+        print('⏳ APNs token not ready (${i + 1}/5), retrying...');
         await Future.delayed(const Duration(seconds: 1));
       }
 
+      // Log status but DON'T block if null
       if (apnsToken == null) {
-        print('❌ APNs token is still null after retries.');
-        print('   Check: Push Notifications enabled in Apple Developer Portal?');
-        print('   Check: APNs .p8 key uploaded to Firebase Console?');
-        print('   Check: Runner.entitlements has aps-environment = production?');
-        // Don't proceed — FCM token will also be null without APNs
-        return;
+        print('⚠️ APNs token is null');
+        print('   This is normal on simulator or if APNs not fully provisioned.');
+        print('   If on real iOS device: Verify APNs certificate in Apple Developer Portal');
+        print('   If on real iOS device: Verify APNs .p8 uploaded to Firebase Console');
+        print('   If on real iOS device: Verify Runner.entitlements has aps-environment=production');
+        print('   Proceeding to fetch FCM token anyway...');
       }
-
-      print('✅ APNs token: $apnsToken');
+    } else {
+      print('💻 Non-iOS platform detected (Windows/Android/Web)');
+      print('   APNS is iOS-only, skipping APNS check.');
     }
 
-    // Now safe to get FCM token
+    // ✅ IMPORTANT: Always try to get FCM token, regardless of APNS result
+    print('🔄 Fetching FCM token...');
     final String? fcmToken = await FirebaseMessaging.instance.getToken();
 
     if (fcmToken != null) {
-      print('✅ FCM Token: $fcmToken');
+      print('✅ FCM Token successfully obtained: $fcmToken');
       // TODO: Send this token to your backend
+      // Example:
+      // await _sendTokenToBackend(fcmToken);
     } else {
-      print('❌ FCM token is null.');
+      print('❌ FCM token is null (this is unusual)');
       if (Platform.isIOS) {
-        print('   Ensure APNs is configured and aps-environment = production');
+        print('   On iOS: Ensure APNs is properly configured');
+        print('   On iOS: Try uninstalling and reinstalling the app');
+      } else {
+        print('   On Android: Check Google Play Services is up to date');
       }
     }
 
-    // Listen for token refresh (e.g. app reinstall, token rotation)
+    // Listen for token refresh events (e.g., app reinstall, token rotation)
     FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
       print('🔄 FCM token refreshed: $newToken');
       // TODO: Send updated token to your backend
+      // await _sendTokenToBackend(newToken);
     });
 
     print('✅ FCM token setup complete');
   } catch (e) {
     print('❌ FCM token error: $e');
+    // Don't crash, just log the error
   }
 }
 
@@ -233,6 +250,7 @@ void onDidReceiveNotificationResponse(
     NotificationResponse notificationResponse) {
   print('📱 Notification tapped — payload: ${notificationResponse.payload}');
   // TODO: Navigate based on payload
+  // Example:
   // navigatorKey.currentState?.pushNamed('/details', arguments: notificationResponse.payload);
 }
 
@@ -274,7 +292,11 @@ class _AntiqueSoftAppState extends State<AntiqueSoftApp> {
   void _setupNotificationTapHandler() {
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       print('👆 Notification tapped — title: ${message.notification?.title}');
-      // TODO: Navigate to relevant screen
+      // TODO: Navigate to relevant screen based on message data
+      // Example:
+      // if (message.data.containsKey('screen')) {
+      //   Navigator.pushNamed(context, message.data['screen']);
+      // }
     });
   }
 
