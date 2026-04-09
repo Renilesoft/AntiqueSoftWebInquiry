@@ -152,9 +152,7 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
                       tablet: 40,
                       desktop: 60,
                     )),
-                    
-                    // FCM Token Display Section
-                    _buildFCMTokenSection(getResponsiveValue),
+
                     
                     SizedBox(height: getResponsiveValue(
                       mobile: 24,
@@ -188,160 +186,7 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
   }
 
   // Build FCM token display section
-  Widget _buildFCMTokenSection(
-    double Function({
-      required double mobile,
-      required double tablet,
-      required double desktop,
-    }) getResponsiveValue,
-  ) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    
-    if (isLoadingToken) {
-      return Container(
-        padding: EdgeInsets.all(screenWidth < 600 ? 12 : 16),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(screenWidth < 600 ? 8 : 12),
-          border: Border.all(
-            color: Colors.grey.shade200,
-            width: 1,
-          ),
-        ),
-        child: SizedBox(
-          height: screenWidth < 600 ? 40 : 50,
-          child: Center(
-            child: SizedBox(
-              width: screenWidth < 600 ? 20 : 24,
-              height: screenWidth < 600 ? 20 : 24,
-              child: const CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF8500)),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
 
-    if (fcmToken != null && fcmToken!.isNotEmpty) {
-      return Container(
-        padding: EdgeInsets.all(screenWidth < 600 ? 14 : 18),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFF3E0), // Light orange background
-          borderRadius: BorderRadius.circular(screenWidth < 600 ? 10 : 14),
-          border: Border.all(
-            color: const Color(0xFFFF8500),
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFFF8500).withOpacity(0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header with info icon
-            Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(screenWidth < 600 ? 6 : 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFF8500),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Icon(
-                    Icons.devices,
-                    color: Colors.white,
-                    size: screenWidth < 600 ? 16 : 18,
-                  ),
-                ),
-                SizedBox(width: screenWidth < 600 ? 8 : 12),
-                Text(
-                  'Device Token',
-                  style: TextStyle(
-                    fontSize: screenWidth < 600 ? 13 : 14,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFFFF8500),
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: screenWidth < 600 ? 10 : 14),
-            
-            // Token content with copy button
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'FCM Token:',
-                        style: TextStyle(
-                          fontSize: screenWidth < 600 ? 11 : 12,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF172B4D).withOpacity(0.6),
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                      SizedBox(height: screenWidth < 600 ? 6 : 8),
-                      Text(
-                        fcmToken!,
-                        style: TextStyle(
-                          fontSize: screenWidth < 600 ? 11 : 12,
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFF172B4D),
-                          height: 1.4,
-                          letterSpacing: 0.1,
-                          fontFamily: 'Courier',
-                        ),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(width: screenWidth < 600 ? 8 : 12),
-                GestureDetector(
-                  onTap: () {
-                    // Copy token to clipboard
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('Token copied to clipboard'),
-                        duration: const Duration(seconds: 2),
-                        backgroundColor: const Color(0xFFFF8500),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    padding: EdgeInsets.all(screenWidth < 600 ? 8 : 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFF8500).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Icon(
-                      Icons.content_copy,
-                      color: const Color(0xFFFF8500),
-                      size: screenWidth < 600 ? 18 : 20,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-    }
-
-    return const SizedBox.shrink();
-  }
 
   Widget _buildLogoSection() {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -535,40 +380,7 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
                   ),
                 ),
               ),
-        
         SizedBox(height: getCheckboxSpacing()),
-        
-       // Test Notification Button
-        SizedBox(
-          width: double.infinity,
-          height: screenWidth < 600 ? 52 : 60,
-          child: OutlinedButton(
-            onPressed: () async {
-              await NotificationService().showLocalNotification(
-                title: "Test Notification",
-                body: "This is a test local notification"
-              );
-            },
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(
-                color: Color(0xFFFF8500),
-                width: 2,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(screenWidth < 600 ? 26 : 30),
-              ),
-            ),
-            child: Text(
-              'Test Notification',
-              style: TextStyle(
-                color: const Color(0xFFFF8500),
-                fontSize: screenWidth < 600 ? 16 : 18,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-        ),
       ],
     );
   }

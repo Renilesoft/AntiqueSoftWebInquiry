@@ -2,11 +2,8 @@ import 'package:antiquewebemquiry/Constants/baseurl.dart';
 import 'package:antiquewebemquiry/Global/location.dart';
 import 'package:antiquewebemquiry/Global/username.dart';
 import 'package:antiquewebemquiry/Global/vendorid.dart';
-import 'package:antiquewebemquiry/Services/notification.dart';
 import 'package:antiquewebemquiry/view/hamburger.dart';
 import 'package:antiquewebemquiry/view/message.dart';
-import 'package:antiquewebemquiry/view/notification.dart';
-import 'package:antiquewebemquiry/view/notificationspage.dart';
 import 'package:antiquewebemquiry/view/popupmessage.dart';
 import 'package:antiquewebemquiry/view/salesreport.dart';
 import 'package:antiquewebemquiry/viewmodel/home_viewmodel.dart';
@@ -58,12 +55,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   bool isLoadingMarketMessage = true;
 
   Timer? _notificationTimer;
-  int _notificationCount = 0;
-  bool _isLoadingNotifications = false;
-  DateTime? _lastNotificationDateTime;
-  bool _isNotificationRequestPending = false;
 
-  static const int FAST_POLLING_INTERVAL_SECONDS = 2;
+
   static const int REQUEST_TIMEOUT_SECONDS = 8;
 
   String vendorName = 'Loading...';
@@ -130,19 +123,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _fetchMonthlySalesStats();
     _fetchYearlyStats();
     
-    _fetchNotifications();
-    _startNotificationTimer();
   }
 
-  void _startNotificationTimer() {
-    _notificationTimer = Timer.periodic(
-      const Duration(seconds: FAST_POLLING_INTERVAL_SECONDS),
-      (timer) {
-        _fetchNotifications();
-      },
-    );
-    debugPrint('🚀 [NOTIFICATION] Polling started - every $FAST_POLLING_INTERVAL_SECONDS seconds');
-  }
+
 
   void _stopNotificationTimer() {
     _notificationTimer?.cancel();
@@ -150,138 +133,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     debugPrint('🛑 [NOTIFICATION] Polling stopped');
   }
 
-  DateTime? _parseDateTime(String dateTimeString) {
-    try {
-      return DateTime.parse(dateTimeString);
-    } catch (e) {
-      debugPrint('❌ [ERROR] Failed to parse datetime: $dateTimeString');
-      return null;
-    }
-  }
-
-  Future<void> _fetchNotifications() async {
-    if (_isNotificationRequestPending || _isLoadingNotifications) {
-      return;
-    }
-
-    _isNotificationRequestPending = true;
-
-    try {
-      final String url =
-          '$baseurl/Home/getSalesSimple?location=${Location.location}&vendorId=${Vendor.vendorid}';
-
-      debugPrint('📡 [FETCH] Polling API for new sales...');
-
-      final response = await http
-          .get(
-            Uri.parse(url),
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-          )
-          .timeout(
-            const Duration(seconds: REQUEST_TIMEOUT_SECONDS),
-            onTimeout: () {
-              throw TimeoutException('API request timed out');
-            },
-          );
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        final List<dynamic> salesList = data['sales'] ?? [];
-
-        debugPrint('📊 [FETCH] Got ${salesList.length} sales from API');
-        debugPrint('📊 [FETCH] Last notification datetime: $_lastNotificationDateTime');
-
-        if (salesList.isNotEmpty) {
-          // LOGIC: Get all sales that occurred AFTER the last notification datetime
-          final List<Map<String, dynamic>> newSalesToNotify = [];
-
-          for (var sale in salesList) {
-            final String dateTimeString = sale['dateTime'] ?? '';
-            final DateTime? saleDateTime = _parseDateTime(dateTimeString);
-
-            if (saleDateTime == null) {
-              debugPrint('⏭️ [SKIP] Could not parse datetime: $dateTimeString');
-              continue;
-            }
-
-            // If this is the first notification, notify about this sale
-            if (_lastNotificationDateTime == null) {
-              newSalesToNotify.add(sale);
-              debugPrint('✅ [NEW] First sale: ${sale['itemDescription']} at $saleDateTime');
-            } 
-            // If sale occurred AFTER the last notification, notify about it
-            else if (saleDateTime.isAfter(_lastNotificationDateTime!)) {
-              newSalesToNotify.add(sale);
-              debugPrint('✅ [NEW] Sale after last notification: ${sale['itemDescription']} at $saleDateTime');
-            } 
-            else {
-              debugPrint('⏭️ [SKIP] Sale before or at last notification: ${sale['itemDescription']} at $saleDateTime');
-            }
-          }
-
-          // SEND ALL NEW SALES IMMEDIATELY
-          if (newSalesToNotify.isNotEmpty) {
-            debugPrint('🎯 [ACTION] Sending notifications for ${newSalesToNotify.length} sale(s)');
-            
-            // Update the last notification datetime to the latest sale datetime
-            final String lastSaleDateTimeString = newSalesToNotify.last['dateTime'] ?? '';
-            final DateTime? lastSaleDateTime = _parseDateTime(lastSaleDateTimeString);
-            if (lastSaleDateTime != null) {
-              _lastNotificationDateTime = lastSaleDateTime;
-              debugPrint('📅 [UPDATE] Last notification datetime updated to: $_lastNotificationDateTime');
-            }
-            
-            _showAllNotificationsInstantly(newSalesToNotify);
-          }
-        }
-
-        if (mounted) {
-          setState(() {
-            _notificationCount = data['count'] ?? 0;
-          });
-        }
-      } else {
-        debugPrint('❌ [ERROR] API returned: ${response.statusCode}');
-      }
-    } on TimeoutException {
-      debugPrint('⏱️ [TIMEOUT] API request timeout after $REQUEST_TIMEOUT_SECONDS seconds');
-    } catch (e) {
-      debugPrint('❌ [ERROR] Fetch exception: $e');
-    } finally {
-      _isNotificationRequestPending = false;
-      _isLoadingNotifications = false;
-    }
-  }
-
-  void _showAllNotificationsInstantly(List<Map<String, dynamic>> sales) {
-    debugPrint('📬 [DISPATCH] Sending ${sales.length} notification(s) instantly...');
-
-    for (var i = 0; i < sales.length; i++) {
-      final sale = sales[i];
-      final String itemDescription = sale['itemDescription'] ?? 'New Sale';
-      final int quantity = sale['quantity'] ?? 0;
-
-      _sendNotificationAsync(itemDescription, quantity, sale, i, sales.length);
-    }
-  }
-
-  void _sendNotificationAsync(String itemDescription, int quantity, Map<String, dynamic> sale, int index, int total) {
-    Future.microtask(() async {
-      try {
-        await NotificationService().showLocalNotification(
-          title: 'New Sale!',
-          body: 'You have got 1 new Sale!',
-          payload: jsonEncode(sale),
-        );
-        debugPrint('✅ [SENT] Sale #${index + 1}/$total: $itemDescription (Qty: $quantity)');
-      } catch (e) {
-        debugPrint('❌ [ERROR] Failed to send notification: $e');
-      }
-    });
-  }
 
   Future<void> _refreshPage() async {
     final futures = [
