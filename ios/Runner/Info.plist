@@ -56,7 +56,11 @@
         <true/>
     </dict>
 
-    <!-- 🔗 Deep Linking -->
+    <!-- 🔥 Firebase (IMPORTANT) -->
+    <key>FirebaseAppDelegateProxyEnabled</key>
+    <false/>
+
+    <!-- 🔗 Deep Linking (FIXED) -->
     <key>CFBundleURLTypes</key>
     <array>
         <dict>
@@ -64,7 +68,7 @@
             <string>asinquiryapp</string>
             <key>CFBundleURLSchemes</key>
             <array>
-                <string>http</string>
+                <string>asinquiryapp</string>
             </array>
         </dict>
     </array>
@@ -93,14 +97,14 @@
     <key>UIApplicationSupportsIndirectInputEvents</key>
     <true/>
 
-    <!-- ✅ BACKGROUND MODES (Correct Placement) -->
+    <!-- ✅ Background Modes -->
     <key>UIBackgroundModes</key>
     <array>
         <string>fetch</string>
         <string>remote-notification</string>
     </array>
 
-    <!-- Optional (kept from your config) -->
+    <!-- Optional -->
     <key>PHPhotoLibraryPreventAutomaticLimitedAccessAlert</key>
     <true/>
 
