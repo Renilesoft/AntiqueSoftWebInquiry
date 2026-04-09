@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io' show Platform;
+import 'package:antiquewebemquiry/Services/notification.dart';
 import 'package:antiquewebemquiry/app_data.dart';
 import 'package:antiquewebemquiry/user_data.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -7,13 +7,15 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';                    // ← ADD to pubspec.yaml
 
 import '../Constants/baseurl.dart';
 import '../Global/location.dart';
 import '../Global/username.dart';
 import '../Global/vendorid.dart';
 import '../view/home_screen/home_screen.dart';
+
+// 🔥 IMPORT NOTIFICATION SERVICE
+
 
 class LoginViewModel extends ChangeNotifier {
   final TextEditingController storeCodeController = TextEditingController();
@@ -50,12 +52,14 @@ class LoginViewModel extends ChangeNotifier {
   void toggleRememberMe() async {
     _rememberMe = !_rememberMe;
     final prefs = await SharedPreferences.getInstance();
+
     if (_rememberMe) {
       await prefs.setBool('rememberMe', true);
       await _saveCredentials();
     } else {
       await prefs.setBool('rememberMe', false);
     }
+
     notifyListeners();
   }
 
@@ -69,11 +73,13 @@ class LoginViewModel extends ChangeNotifier {
   Future<void> restoreSavedCredentials() async {
     final prefs = await SharedPreferences.getInstance();
     _rememberMe = prefs.getBool('rememberMe') ?? false;
+
     if (_rememberMe) {
       storeCodeController.text = prefs.getString('rememberedStoreCode') ?? '';
       usernameController.text = prefs.getString('rememberedUsername') ?? '';
       passwordController.text = prefs.getString('rememberedPassword') ?? '';
     }
+
     notifyListeners();
   }
 
@@ -97,66 +103,7 @@ class LoginViewModel extends ChangeNotifier {
     return String.fromCharCodes(input.runes.map((r) => r ^ xorKey));
   }
 
-  // ─────────────────────────────────────────────────────────
-  // GET DEVICE TOKEN
-  // iOS: Uses UUID as fallback while APNs/FCM token is being resolved
-  // Android: Uses real FCM token as before
-  // ─────────────────────────────────────────────────────────
-  Future<String> _getDeviceToken() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    if (Platform.isIOS) {
-      // ── FCM TOKEN TEMPORARILY COMMENTED OUT FOR iOS ──────
-      // String? fcmToken = await FirebaseMessaging.instance.getToken();
-      // if (fcmToken != null && fcmToken.isNotEmpty) {
-      //   print('🔥 iOS FCM Token: $fcmToken');
-      //   return fcmToken;
-      // }
-      // ─────────────────────────────────────────────────────
-
-      // ✅ iOS FALLBACK — use stable UUID stored in SharedPreferences
-      // This ensures login works while APNs/FCM is being set up
-      String? storedUUID = prefs.getString('ios_device_uuid');
-      if (storedUUID != null && storedUUID.isNotEmpty) {
-        print('📱 Using existing iOS UUID: $storedUUID');
-        return storedUUID;
-      }
-
-      // Generate and store a new UUID for this device
-      final newUUID = const Uuid().v4();
-      await prefs.setString('ios_device_uuid', newUUID);
-      print('📱 Generated new iOS UUID: $newUUID');
-      return newUUID;
-
-    } else {
-      // ── ANDROID — use real FCM token ──────────────────────
-      String? fcmToken = await FirebaseMessaging.instance.getToken();
-
-      if (fcmToken == null || fcmToken.isEmpty) {
-        print('⚠️ Android FCM token null, retrying...');
-        await Future.delayed(const Duration(milliseconds: 500));
-        fcmToken = await FirebaseMessaging.instance.getToken();
-      }
-
-      if (fcmToken != null && fcmToken.isNotEmpty) {
-        print('🔥 Android FCM Token: $fcmToken');
-        await prefs.setString('fcm_token', fcmToken);
-        return fcmToken;
-      }
-
-      // Android fallback UUID (should rarely hit this)
-      String? storedUUID = prefs.getString('android_device_uuid');
-      if (storedUUID != null && storedUUID.isNotEmpty) return storedUUID;
-      final newUUID = const Uuid().v4();
-      await prefs.setString('android_device_uuid', newUUID);
-      print('⚠️ Android FCM fallback UUID: $newUUID');
-      return newUUID;
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────
-  // LOGIN
-  // ─────────────────────────────────────────────────────────
+  // 🔥 LOGIN WITH FCM TOKEN (FINAL)
   Future<bool> login(BuildContext context) async {
     _setLoading(true);
 
@@ -165,9 +112,17 @@ class LoginViewModel extends ChangeNotifier {
       final username = usernameController.text.trim();
       final password = passwordController.text.trim();
 
-      // Get token (UUID on iOS, real FCM on Android)
-      final String deviceToken = await _getDeviceToken();
-      print('📤 Sending device token to server: $deviceToken');
+      /// 🔥 STEP 1 — Get FCM Token
+      String? fcmToken = await FirebaseMessaging.instance.getToken();
+
+      /// ⚠️ FALLBACK (VERY IMPORTANT)
+      if (fcmToken == null || fcmToken.isEmpty) {
+        print("⚠️ FCM token null, retrying...");
+        await Future.delayed(const Duration(milliseconds: 500));
+        fcmToken = await FirebaseMessaging.instance.getToken();
+      }
+
+      print('🔥 Using FCM Token: $fcmToken');
 
       final response = await http.post(
         Uri.parse("$baseurl/Home/login"),
@@ -176,12 +131,9 @@ class LoginViewModel extends ChangeNotifier {
           "location": storeCode,
           "username": username,
           "password": encryptString(password),
-          "fcmToken": deviceToken,
+          "fcmToken": fcmToken ?? "",
         }),
       ).timeout(const Duration(seconds: 10));
-
-      print('📥 Login response status: ${response.statusCode}');
-      print('📥 Login response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final jsonMap = jsonDecode(response.body);
@@ -198,16 +150,21 @@ class LoginViewModel extends ChangeNotifier {
           final user = userDataList.first;
           final prefs = await SharedPreferences.getInstance();
 
-          // Store session data
+          /// ✅ STORE SESSION DATA
           await prefs.setString('username', username);
           await prefs.setString('location', storeCode);
           await prefs.setInt('vendorid', user.vendorID);
           await prefs.setString('userData', jsonEncode(user.toJson()));
           await prefs.setInt('loginTimestamp', DateTime.now().millisecondsSinceEpoch);
-          await prefs.setString('fcm_token', deviceToken);
+
+          /// 🔥 STORE FCM TOKEN
+          if (fcmToken != null && fcmToken.isNotEmpty) {
+            await prefs.setString('fcm_token', fcmToken);
+          }
+
           await prefs.setBool('hasLoggedInOnThisDevice', true);
 
-          // Remember Me
+          /// ✅ Remember Me
           if (_rememberMe) {
             await prefs.setBool('rememberMe', true);
             await _saveCredentials();
@@ -232,7 +189,8 @@ class LoginViewModel extends ChangeNotifier {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => const HomeScreen(showWelcomeMessage: true),
+                builder: (context) =>
+                    const HomeScreen(showWelcomeMessage: true),
               ),
             );
           }
@@ -240,30 +198,36 @@ class LoginViewModel extends ChangeNotifier {
           return true;
         } else {
           _setLoading(false);
-          debugPrint('❌ Login failed: ${jsonMap["message"]}');
+          debugPrint("Login failed: ${jsonMap["message"]}");
           return false;
         }
       } else {
         _setLoading(false);
-        debugPrint('❌ Login HTTP error: ${response.statusCode}');
+        debugPrint("Login failed: ${response.statusCode}");
         return false;
       }
     } catch (e) {
       _setLoading(false);
-      debugPrint('❌ Login exception: $e');
+      debugPrint("Error: $e");
       return false;
     }
   }
 
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
+
     await prefs.remove('username');
     await prefs.remove('location');
     await prefs.remove('vendorid');
     await prefs.remove('userData');
     await prefs.remove('loginTimestamp');
-    // ❗ DO NOT remove FCM token or UUID on logout
-    if (!_rememberMe) clearStoredData();
+
+    // ❗ DO NOT REMOVE FCM TOKEN
+
+    if (!_rememberMe) {
+      clearStoredData();
+    }
+
     notifyListeners();
   }
 
