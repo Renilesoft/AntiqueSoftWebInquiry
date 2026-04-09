@@ -1,13 +1,10 @@
-import 'dart:async';
-
 import 'package:antiquewebemquiry/app_data.dart';
 import 'package:antiquewebemquiry/Services/notification.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:quickalert/quickalert.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import '../viewmodel/login_viewmodel.dart';
 
 class LoginScreen extends StatelessWidget {
@@ -40,17 +37,16 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
   final FocusNode _userIdFocusNode = FocusNode();
   final FocusNode _passwordFocusNode = FocusNode();
 
-  // Market message state
-  String? marketMessage;
-  bool isLoadingMessage = true;
-  String? messageError;
+  // FCM token state
+  String? fcmToken;
+  bool isLoadingToken = true;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<LoginViewModel>().restoreSavedCredentials();
-      _fetchMarketMessage();
+      _fetchFCMToken();
     });
   }
 
@@ -62,45 +58,21 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
     super.dispose();
   }
 
-  // Fetch market message from API
-  Future<void> _fetchMarketMessage() async {
+  // Fetch FCM token from Firebase
+  Future<void> _fetchFCMToken() async {
     try {
-      final response = await http.get(
-        Uri.parse('http://192.168.10.144/Antiquesoft/Home/getMarketMessage?location=VVLF2'),
-      ).timeout(
-        const Duration(seconds: 8),
-        onTimeout: () {
-          throw TimeoutException('Request timeout. Please check your connection.');
-        },
-      );
-
-      if (mounted) {
-        if (response.statusCode == 200) {
-          final jsonResponse = jsonDecode(response.body);
-          setState(() {
-            marketMessage = jsonResponse['marketMessage'] ?? '';
-            isLoadingMessage = false;
-            messageError = null;
-          });
-        } else {
-          setState(() {
-            messageError = 'Failed to load message';
-            isLoadingMessage = false;
-          });
-        }
-      }
-    } on TimeoutException catch (e) {
+      final token = await FirebaseMessaging.instance.getToken();
       if (mounted) {
         setState(() {
-          messageError = e.message;
-          isLoadingMessage = false;
+          fcmToken = token ?? 'Unable to retrieve token';
+          isLoadingToken = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          messageError = 'Unable to load message';
-          isLoadingMessage = false;
+          fcmToken = 'Error: ${e.toString()}';
+          isLoadingToken = false;
         });
       }
     }
@@ -168,7 +140,7 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
             child: ConstrainedBox(
               constraints: BoxConstraints(
                 maxWidth: getContainerWidth(),
-                minHeight: screenHeight * 0.7, // Minimum height for proper centering
+                minHeight: screenHeight * 0.7,
               ),
               child: IntrinsicHeight(
                 child: Column(
@@ -181,8 +153,8 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
                       desktop: 60,
                     )),
                     
-                    // Market Message Section
-                    _buildMarketMessageSection(getResponsiveValue),
+                    // FCM Token Display Section
+                    _buildFCMTokenSection(getResponsiveValue),
                     
                     SizedBox(height: getResponsiveValue(
                       mobile: 24,
@@ -197,7 +169,6 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
                       tablet: 60,
                       desktop: 80,
                     )),
-                    
                     
                     _buildFormSection(loginViewModel),
                     
@@ -216,8 +187,8 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
     );
   }
 
-  // Build market message section
-  Widget _buildMarketMessageSection(
+  // Build FCM token display section
+  Widget _buildFCMTokenSection(
     double Function({
       required double mobile,
       required double tablet,
@@ -226,7 +197,7 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
   ) {
     final screenWidth = MediaQuery.of(context).size.width;
     
-    if (isLoadingMessage) {
+    if (isLoadingToken) {
       return Container(
         padding: EdgeInsets.all(screenWidth < 600 ? 12 : 16),
         decoration: BoxDecoration(
@@ -253,50 +224,7 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
       );
     }
 
-    if (messageError != null) {
-      return Container(
-        padding: EdgeInsets.all(screenWidth < 600 ? 12 : 16),
-        decoration: BoxDecoration(
-          color: Colors.red.shade50,
-          borderRadius: BorderRadius.circular(screenWidth < 600 ? 8 : 12),
-          border: Border.all(
-            color: Colors.red.shade200,
-            width: 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              Icons.error_outline,
-              color: Colors.red.shade600,
-              size: screenWidth < 600 ? 20 : 24,
-            ),
-            SizedBox(width: screenWidth < 600 ? 8 : 12),
-            Expanded(
-              child: Text(
-                messageError!,
-                style: TextStyle(
-                  color: Colors.red.shade700,
-                  fontSize: screenWidth < 600 ? 13 : 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            SizedBox(width: screenWidth < 600 ? 8 : 12),
-            GestureDetector(
-              onTap: _fetchMarketMessage,
-              child: Icon(
-                Icons.refresh,
-                color: Colors.red.shade600,
-                size: screenWidth < 600 ? 18 : 20,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (marketMessage != null && marketMessage!.isNotEmpty) {
+    if (fcmToken != null && fcmToken!.isNotEmpty) {
       return Container(
         padding: EdgeInsets.all(screenWidth < 600 ? 14 : 18),
         decoration: BoxDecoration(
@@ -317,7 +245,7 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Message header
+            // Header with info icon
             Row(
               children: [
                 Container(
@@ -327,14 +255,14 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Icon(
-                    Icons.info,
+                    Icons.devices,
                     color: Colors.white,
                     size: screenWidth < 600 ? 16 : 18,
                   ),
                 ),
                 SizedBox(width: screenWidth < 600 ? 8 : 12),
                 Text(
-                  'Important Message',
+                  'Device Token',
                   style: TextStyle(
                     fontSize: screenWidth < 600 ? 13 : 14,
                     fontWeight: FontWeight.w700,
@@ -345,16 +273,67 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
               ],
             ),
             SizedBox(height: screenWidth < 600 ? 10 : 14),
-            // Message content
-            Text(
-              marketMessage!,
-              style: TextStyle(
-                fontSize: screenWidth < 600 ? 13 : 14,
-                fontWeight: FontWeight.w500,
-                color: const Color(0xFF172B4D),
-                height: 1.5,
-                letterSpacing: 0.2,
-              ),
+            
+            // Token content with copy button
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'FCM Token:',
+                        style: TextStyle(
+                          fontSize: screenWidth < 600 ? 11 : 12,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF172B4D).withOpacity(0.6),
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      SizedBox(height: screenWidth < 600 ? 6 : 8),
+                      Text(
+                        fcmToken!,
+                        style: TextStyle(
+                          fontSize: screenWidth < 600 ? 11 : 12,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF172B4D),
+                          height: 1.4,
+                          letterSpacing: 0.1,
+                          fontFamily: 'Courier',
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: screenWidth < 600 ? 8 : 12),
+                GestureDetector(
+                  onTap: () {
+                    // Copy token to clipboard
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Token copied to clipboard'),
+                        duration: const Duration(seconds: 2),
+                        backgroundColor: const Color(0xFFFF8500),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: EdgeInsets.all(screenWidth < 600 ? 8 : 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF8500).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(
+                      Icons.content_copy,
+                      color: const Color(0xFFFF8500),
+                      size: screenWidth < 600 ? 18 : 20,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
