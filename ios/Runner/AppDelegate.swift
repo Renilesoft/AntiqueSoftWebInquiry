@@ -1,8 +1,7 @@
 import UIKit
 import Flutter
-import Firebase
-import FirebaseMessaging        // ← ADD
-import UserNotifications        // ← ADD
+import FirebaseMessaging
+import UserNotifications
 
 @UIApplicationMain
 @objc class AppDelegate: FlutterAppDelegate {
@@ -11,9 +10,8 @@ import UserNotifications        // ← ADD
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
 
-    FirebaseApp.configure()
+    // ❌ REMOVE FirebaseApp.configure() — Dart handles this via Firebase.initializeApp()
 
-    // ── ADD THIS BLOCK ──────────────────────────────────────
     UNUserNotificationCenter.current().delegate = self
 
     let authOptions: UNAuthorizationOptions = [.alert, .badge, .sound]
@@ -21,21 +19,16 @@ import UserNotifications        // ← ADD
       options: authOptions,
       completionHandler: { _, _ in }
     )
-
-    application.registerForRemoteNotifications()   // ← triggers APNs token generation
-    // ────────────────────────────────────────────────────────
+    application.registerForRemoteNotifications()
 
     GeneratedPluginRegistrant.register(with: self)
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
-  // ── ADD THIS ENTIRE FUNCTION ─────────────────────────────
-  // Passes the APNs device token to Firebase so FCM token can be generated
   override func application(
     _ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
   ) {
     Messaging.messaging().apnsToken = deviceToken
   }
-  // ─────────────────────────────────────────────────────────
 }

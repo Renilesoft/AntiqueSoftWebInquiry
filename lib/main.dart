@@ -14,48 +14,54 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 
-// 🔔 Initialize local notifications plugin (GLOBAL)
+// ─────────────────────────────────────────────────────────────
+// GLOBAL: Local notifications plugin instance
+// ─────────────────────────────────────────────────────────────
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
-/// 🔔 BACKGROUND HANDLER (MANDATORY FOR FIREBASE MESSAGING)
+// ─────────────────────────────────────────────────────────────
+// BACKGROUND HANDLER
+// Must be a top-level function (not inside a class)
+// DO NOT call Firebase.initializeApp() here — already initialized
+// ─────────────────────────────────────────────────────────────
+@pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  print("📩 Background message: ${message.messageId}");
+  print("📩 Background message received: ${message.messageId}");
   print("📩 Title: ${message.notification?.title}");
   print("📩 Body: ${message.notification?.body}");
 }
 
+// ─────────────────────────────────────────────────────────────
+// MAIN
+// ─────────────────────────────────────────────────────────────
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  /// ⏳ STEP 1 — Initialize Firebase Core
+  // STEP 1 — Initialize Firebase ONCE via Dart (AppDelegate does NOT call FirebaseApp.configure())
   print('🔥 Initializing Firebase...');
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  /// 🔥 STEP 2 — Register background handler FIRST (MUST be done before runApp)
-  print('🔔 Registering background message handler...');
-  FirebaseMessaging.onBackgroundMessage(
-      firebaseMessagingBackgroundHandler);
+  // STEP 2 — Register background handler immediately after Firebase.initializeApp()
+  // This MUST happen before runApp()
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  print('🔔 Background message handler registered');
 
-  /// 🔔 STEP 3 — Initialize local notifications
+  // STEP 3 — Initialize local notifications
   print('🔔 Initializing local notifications...');
   await initializeLocalNotifications();
 
-  /// 🔥 STEP 4 — Request notification permission (iOS + Android 13+)
+  // STEP 4 — Request notification permission (iOS requires explicit request)
   print('🔐 Requesting notification permissions...');
   await requestNotificationPermission();
 
-  /// 🔥 STEP 5 — Get FCM Token and setup token refresh listener
+  // STEP 5 — Fetch FCM token (iOS: waits for APNs token first)
   print('🔥 Fetching FCM token...');
   await getFCMToken();
 
-  /// 🔥 EXISTING DATA LOAD (UNCHANGED)
+  // STEP 6 — Load app data (unchanged from your original)
   print('📊 Loading app data...');
   await Username.loadusername();
   await Vendor.loadVendorId();
@@ -70,10 +76,14 @@ Future<void> main() async {
   runApp(const AntiqueSoftApp());
 }
 
-/// 🔔 REQUEST PERMISSION (iOS + Android 13+)
+// ─────────────────────────────────────────────────────────────
+// REQUEST NOTIFICATION PERMISSION
+// iOS requires explicit runtime permission
+// Android 13+ also requires this
+// ─────────────────────────────────────────────────────────────
 Future<void> requestNotificationPermission() async {
   try {
-    NotificationSettings settings =
+    final NotificationSettings settings =
         await FirebaseMessaging.instance.requestPermission(
       alert: true,
       badge: true,
@@ -84,110 +94,114 @@ Future<void> requestNotificationPermission() async {
       provisional: false,
     );
 
-    print('🔐 Permission Status: ${settings.authorizationStatus}');
-
-    // Check if permission was granted
-    if (settings.authorizationStatus == AuthorizationStatus.denied) {
-      print('❌ User denied notification permissions');
-    } else if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      print('✅ Notification permissions granted');
-    } else if (settings.authorizationStatus == AuthorizationStatus.provisional) {
-      print('⚠️ Provisional permissions granted (iOS)');
+    switch (settings.authorizationStatus) {
+      case AuthorizationStatus.authorized:
+        print('✅ Notification permission: AUTHORIZED');
+        break;
+      case AuthorizationStatus.provisional:
+        print('⚠️ Notification permission: PROVISIONAL (iOS)');
+        break;
+      case AuthorizationStatus.denied:
+        print('❌ Notification permission: DENIED');
+        break;
+      case AuthorizationStatus.notDetermined:
+        print('⚠️ Notification permission: NOT DETERMINED');
+        break;
     }
   } catch (e) {
-    print('❌ Error requesting permissions: $e');
+    print('❌ Error requesting notification permission: $e');
   }
 }
 
-/// 🔥 GET FCM TOKEN (WITH iOS APNS FIX)
+// ─────────────────────────────────────────────────────────────
+// GET FCM TOKEN
+// iOS: APNs token must resolve before FCM token is available
+// ─────────────────────────────────────────────────────────────
 Future<void> getFCMToken() async {
   try {
-    // 🍎 iOS: Get APNS token FIRST
     if (Platform.isIOS) {
-      print('🍎 Getting APNS token for iOS...');
-      String? apnsToken =
-          await FirebaseMessaging.instance.getAPNSToken();
-      print("🍎 APNS Token: $apnsToken");
+      print('🍎 iOS detected — fetching APNs token first...');
+
+      // APNs token can take a moment — retry up to 5 times
+      String? apnsToken;
+      for (int i = 0; i < 5; i++) {
+        apnsToken = await FirebaseMessaging.instance.getAPNSToken();
+        if (apnsToken != null) break;
+        print('⏳ APNs token not ready, retrying (${i + 1}/5)...');
+        await Future.delayed(const Duration(seconds: 1));
+      }
 
       if (apnsToken == null) {
-        print("⚠️ WARNING: APNS token is null!");
-        print("📱 iOS Troubleshooting Checklist:");
-        print("   1. Check Apple Developer Account APNS certificate");
-        print("   2. Verify Firebase iOS setup in GoogleService-Info.plist");
-        print("   3. Ensure app has notification entitlements");
-        print("   4. Try reinstalling the app");
+        print('❌ APNs token is still null after retries.');
+        print('   Check: Push Notifications enabled in Apple Developer Portal?');
+        print('   Check: APNs .p8 key uploaded to Firebase Console?');
+        print('   Check: Runner.entitlements has aps-environment = production?');
+        // Don't proceed — FCM token will also be null without APNs
+        return;
       }
 
-      // Add delay to ensure APNS is ready before FCM
-      await Future.delayed(const Duration(milliseconds: 500));
+      print('✅ APNs token: $apnsToken');
     }
 
-    // Get FCM Token
-    String? token = await FirebaseMessaging.instance.getToken();
-    print("🔥 FCM TOKEN: $token");
+    // Now safe to get FCM token
+    final String? fcmToken = await FirebaseMessaging.instance.getToken();
 
-    if (token == null) {
-      print("❌ ERROR: FCM token is null");
+    if (fcmToken != null) {
+      print('✅ FCM Token: $fcmToken');
+      // TODO: Send this token to your backend
+    } else {
+      print('❌ FCM token is null.');
       if (Platform.isIOS) {
-        print("📱 iOS FCM Token Troubleshooting:");
-        print("   1. Check Apple Developer Account APNS certificate");
-        print("   2. Verify Firebase iOS setup in GoogleService-Info.plist");
-        print("   3. Ensure NSUserNotificationCenter permission granted");
-        print("   4. Try uninstalling and reinstalling app");
+        print('   Ensure APNs is configured and aps-environment = production');
       }
     }
 
-    // 🔄 Listen to token refresh and update backend when token changes
+    // Listen for token refresh (e.g. app reinstall, token rotation)
     FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
-      print("🔄 Token refreshed: $newToken");
-      // TODO: Send new token to your backend API
-      // Example:
-      // await updateTokenInBackend(newToken);
+      print('🔄 FCM token refreshed: $newToken');
+      // TODO: Send updated token to your backend
     });
 
     print('✅ FCM token setup complete');
   } catch (e) {
-    print("❌ Token error: $e");
+    print('❌ FCM token error: $e');
   }
 }
 
-/// 🔔 INITIALIZE LOCAL NOTIFICATIONS (ANDROID CHANNEL + iOS SETTINGS)
+// ─────────────────────────────────────────────────────────────
+// INITIALIZE LOCAL NOTIFICATIONS
+// Sets up Android channel + iOS foreground display options
+// ─────────────────────────────────────────────────────────────
 Future<void> initializeLocalNotifications() async {
   try {
-    // 🍎 iOS Settings
-    const DarwinInitializationSettings initializationSettingsIOS =
+    const DarwinInitializationSettings iOSSettings =
         DarwinInitializationSettings(
-      requestSoundPermission: true,
-      requestBadgePermission: true,
-      requestAlertPermission: true,
+      requestSoundPermission: false, // We handle permission separately via FCM
+      requestBadgePermission: false,
+      requestAlertPermission: false,
       defaultPresentAlert: true,
       defaultPresentBadge: true,
       defaultPresentSound: true,
     );
 
-    // 🤖 Android Settings
-    const AndroidInitializationSettings initializationSettingsAndroid =
+    const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    // Combined initialization
-    const InitializationSettings initializationSettings =
-        InitializationSettings(
-      iOS: initializationSettingsIOS,
-      android: initializationSettingsAndroid,
+    const InitializationSettings initSettings = InitializationSettings(
+      iOS: iOSSettings,
+      android: androidSettings,
     );
 
-    // Initialize the plugin
     await flutterLocalNotificationsPlugin.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse:
-          onDidReceiveNotificationResponse,
+      initSettings,
+      onDidReceiveNotificationResponse: onDidReceiveNotificationResponse,
     );
 
-    // 🤖 CRITICAL: Create Android notification channel (MUST match your manifest)
+    // Android: Create high importance notification channel
     const AndroidNotificationChannel channel = AndroidNotificationChannel(
       'high_importance_channel',
       'High Importance Notifications',
-      description: 'This channel is used for important notifications',
+      description: 'Used for important push notifications',
       importance: Importance.max,
       playSound: true,
       enableVibration: true,
@@ -198,16 +212,13 @@ Future<void> initializeLocalNotifications() async {
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
 
-    // 🍎 iOS: Enable foreground notification display
-    if (Platform.isIOS) {
-      await FirebaseMessaging.instance
-          .setForegroundNotificationPresentationOptions(
-        alert: true,  // Show alert banner
-        badge: true,  // Show badge
-        sound: true,  // Play sound
-      );
-      print('✅ iOS foreground presentation enabled');
-    }
+    // iOS: Show notifications while app is in foreground
+    await FirebaseMessaging.instance
+        .setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
 
     print('✅ Local notifications initialized');
   } catch (e) {
@@ -215,15 +226,19 @@ Future<void> initializeLocalNotifications() async {
   }
 }
 
-/// 🔔 HANDLE NOTIFICATION TAP (Both foreground and background)
+// ─────────────────────────────────────────────────────────────
+// NOTIFICATION TAP HANDLER
+// ─────────────────────────────────────────────────────────────
 void onDidReceiveNotificationResponse(
     NotificationResponse notificationResponse) {
-  print('📱 Notification tapped: ${notificationResponse.payload}');
-  // TODO: Add navigation logic based on payload
-  // Example:
+  print('📱 Notification tapped — payload: ${notificationResponse.payload}');
+  // TODO: Navigate based on payload
   // navigatorKey.currentState?.pushNamed('/details', arguments: notificationResponse.payload);
 }
 
+// ─────────────────────────────────────────────────────────────
+// ROOT APP WIDGET
+// ─────────────────────────────────────────────────────────────
 class AntiqueSoftApp extends StatefulWidget {
   const AntiqueSoftApp({super.key});
 
@@ -235,54 +250,42 @@ class _AntiqueSoftAppState extends State<AntiqueSoftApp> {
   @override
   void initState() {
     super.initState();
-    
-    // Setup foreground message handler (SAFE HERE in StatefulWidget)
     _setupForegroundHandler();
-    
-    // Setup notification tap handler
     _setupNotificationTapHandler();
   }
 
-  /// 🔔 FOREGROUND MESSAGE HANDLER (Messages while app is open)
+  // Foreground: message received while app is open
   void _setupForegroundHandler() {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print("📩 Foreground message received: ${message.notification?.title}");
-      print("📩 Body: ${message.notification?.body}");
+      print('📩 Foreground message: ${message.notification?.title}');
+      print('📩 Body: ${message.notification?.body}');
 
-      // Show local notification for foreground messages
       if (message.notification != null) {
         _showLocalNotification(message);
       }
 
-      // Handle data payload if present
       if (message.data.isNotEmpty) {
-        print('📦 Data Payload: ${message.data}');
-        // TODO: Process data payload
+        print('📦 Data payload: ${message.data}');
       }
     });
   }
 
-  /// 📲 NOTIFICATION TAP HANDLER (App opened from notification)
+  // App opened by tapping a notification
   void _setupNotificationTapHandler() {
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print('👆 FCM notification tapped: ${message.notification?.title}');
-      print('👆 Payload: ${message.messageId}');
-      // TODO: Add navigation logic based on notification data
+      print('👆 Notification tapped — title: ${message.notification?.title}');
+      // TODO: Navigate to relevant screen
     });
   }
 
-  /// 🔔 SHOW LOCAL NOTIFICATION (For foreground messages)
+  // Display local notification for foreground FCM messages
   Future<void> _showLocalNotification(RemoteMessage message) async {
     try {
-      final String title = message.notification?.title ?? "Notification";
-      final String body = message.notification?.body ?? "";
-      final String? payload = message.messageId;
-
       const AndroidNotificationDetails androidDetails =
           AndroidNotificationDetails(
         'high_importance_channel',
         'High Importance Notifications',
-        channelDescription: 'High Importance Notifications',
+        channelDescription: 'Used for important push notifications',
         importance: Importance.max,
         priority: Priority.high,
         icon: '@mipmap/ic_launcher',
@@ -290,7 +293,7 @@ class _AntiqueSoftAppState extends State<AntiqueSoftApp> {
         playSound: true,
       );
 
-      const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      const DarwinNotificationDetails iOSDetails = DarwinNotificationDetails(
         presentAlert: true,
         presentBadge: true,
         presentSound: true,
@@ -298,18 +301,18 @@ class _AntiqueSoftAppState extends State<AntiqueSoftApp> {
 
       const NotificationDetails notificationDetails = NotificationDetails(
         android: androidDetails,
-        iOS: iosDetails,
+        iOS: iOSDetails,
       );
 
       await flutterLocalNotificationsPlugin.show(
         DateTime.now().millisecondsSinceEpoch ~/ 1000,
-        title,
-        body,
+        message.notification?.title ?? 'Notification',
+        message.notification?.body ?? '',
         notificationDetails,
-        payload: payload,
+        payload: message.messageId,
       );
 
-      print('🔊 Local notification displayed: $title');
+      print('🔊 Local notification shown: ${message.notification?.title}');
     } catch (e) {
       print('❌ Error showing local notification: $e');
     }
@@ -332,14 +335,15 @@ class _AntiqueSoftAppState extends State<AntiqueSoftApp> {
           textTheme: const TextTheme(
             bodyLarge: TextStyle(fontFamily: 'DM Sans'),
             bodyMedium: TextStyle(fontFamily: 'DM Sans'),
-            displayLarge: TextStyle(
-                fontFamily: 'DM Sans', fontWeight: FontWeight.bold),
-            displayMedium: TextStyle(
-                fontFamily: 'DM Sans', fontStyle: FontStyle.italic),
+            displayLarge:
+                TextStyle(fontFamily: 'DM Sans', fontWeight: FontWeight.bold),
+            displayMedium:
+                TextStyle(fontFamily: 'DM Sans', fontStyle: FontStyle.italic),
             displaySmall: TextStyle(
-                fontFamily: 'DM Sans',
-                fontWeight: FontWeight.bold,
-                fontStyle: FontStyle.italic),
+              fontFamily: 'DM Sans',
+              fontWeight: FontWeight.bold,
+              fontStyle: FontStyle.italic,
+            ),
           ),
         ),
         home: const SplashScreen(),
