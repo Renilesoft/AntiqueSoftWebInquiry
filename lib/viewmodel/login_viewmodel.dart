@@ -131,7 +131,7 @@ class LoginViewModel extends ChangeNotifier {
           "location": storeCode,
           "username": username,
           "password": encryptString(password),
-          "fcmToken": fcmToken ?? "",
+          "fcmToken": "",
         }),
       ).timeout(const Duration(seconds: 10));
 

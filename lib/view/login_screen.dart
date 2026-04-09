@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:antiquewebemquiry/app_data.dart';
 import 'package:antiquewebemquiry/Services/notification.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:quickalert/quickalert.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../viewmodel/login_viewmodel.dart';
 
 class LoginScreen extends StatelessWidget {
@@ -36,11 +40,17 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
   final FocusNode _userIdFocusNode = FocusNode();
   final FocusNode _passwordFocusNode = FocusNode();
 
+  // Market message state
+  String? marketMessage;
+  bool isLoadingMessage = true;
+  String? messageError;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<LoginViewModel>().restoreSavedCredentials();
+      _fetchMarketMessage();
     });
   }
 
@@ -50,6 +60,50 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
     _userIdFocusNode.dispose();
     _passwordFocusNode.dispose();
     super.dispose();
+  }
+
+  // Fetch market message from API
+  Future<void> _fetchMarketMessage() async {
+    try {
+      final response = await http.get(
+        Uri.parse('http://192.168.10.144/Antiquesoft/Home/getMarketMessage?location=VVLF2'),
+      ).timeout(
+        const Duration(seconds: 8),
+        onTimeout: () {
+          throw TimeoutException('Request timeout. Please check your connection.');
+        },
+      );
+
+      if (mounted) {
+        if (response.statusCode == 200) {
+          final jsonResponse = jsonDecode(response.body);
+          setState(() {
+            marketMessage = jsonResponse['marketMessage'] ?? '';
+            isLoadingMessage = false;
+            messageError = null;
+          });
+        } else {
+          setState(() {
+            messageError = 'Failed to load message';
+            isLoadingMessage = false;
+          });
+        }
+      }
+    } on TimeoutException catch (e) {
+      if (mounted) {
+        setState(() {
+          messageError = e.message;
+          isLoadingMessage = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          messageError = 'Unable to load message';
+          isLoadingMessage = false;
+        });
+      }
+    }
   }
 
   @override
@@ -127,6 +181,14 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
                       desktop: 60,
                     )),
                     
+                    // Market Message Section
+                    _buildMarketMessageSection(getResponsiveValue),
+                    
+                    SizedBox(height: getResponsiveValue(
+                      mobile: 24,
+                      tablet: 32,
+                      desktop: 40,
+                    )),
                     
                     _buildLogoSection(),
                     
@@ -152,6 +214,154 @@ class _LoginScreenContentState extends State<_LoginScreenContent> {
         ),
       ),
     );
+  }
+
+  // Build market message section
+  Widget _buildMarketMessageSection(
+    double Function({
+      required double mobile,
+      required double tablet,
+      required double desktop,
+    }) getResponsiveValue,
+  ) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    if (isLoadingMessage) {
+      return Container(
+        padding: EdgeInsets.all(screenWidth < 600 ? 12 : 16),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(screenWidth < 600 ? 8 : 12),
+          border: Border.all(
+            color: Colors.grey.shade200,
+            width: 1,
+          ),
+        ),
+        child: SizedBox(
+          height: screenWidth < 600 ? 40 : 50,
+          child: Center(
+            child: SizedBox(
+              width: screenWidth < 600 ? 20 : 24,
+              height: screenWidth < 600 ? 20 : 24,
+              child: const CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF8500)),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (messageError != null) {
+      return Container(
+        padding: EdgeInsets.all(screenWidth < 600 ? 12 : 16),
+        decoration: BoxDecoration(
+          color: Colors.red.shade50,
+          borderRadius: BorderRadius.circular(screenWidth < 600 ? 8 : 12),
+          border: Border.all(
+            color: Colors.red.shade200,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.error_outline,
+              color: Colors.red.shade600,
+              size: screenWidth < 600 ? 20 : 24,
+            ),
+            SizedBox(width: screenWidth < 600 ? 8 : 12),
+            Expanded(
+              child: Text(
+                messageError!,
+                style: TextStyle(
+                  color: Colors.red.shade700,
+                  fontSize: screenWidth < 600 ? 13 : 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            SizedBox(width: screenWidth < 600 ? 8 : 12),
+            GestureDetector(
+              onTap: _fetchMarketMessage,
+              child: Icon(
+                Icons.refresh,
+                color: Colors.red.shade600,
+                size: screenWidth < 600 ? 18 : 20,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (marketMessage != null && marketMessage!.isNotEmpty) {
+      return Container(
+        padding: EdgeInsets.all(screenWidth < 600 ? 14 : 18),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF3E0), // Light orange background
+          borderRadius: BorderRadius.circular(screenWidth < 600 ? 10 : 14),
+          border: Border.all(
+            color: const Color(0xFFFF8500),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFF8500).withOpacity(0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Message header
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(screenWidth < 600 ? 6 : 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF8500),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Icon(
+                    Icons.info,
+                    color: Colors.white,
+                    size: screenWidth < 600 ? 16 : 18,
+                  ),
+                ),
+                SizedBox(width: screenWidth < 600 ? 8 : 12),
+                Text(
+                  'Important Message',
+                  style: TextStyle(
+                    fontSize: screenWidth < 600 ? 13 : 14,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFFFF8500),
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: screenWidth < 600 ? 10 : 14),
+            // Message content
+            Text(
+              marketMessage!,
+              style: TextStyle(
+                fontSize: screenWidth < 600 ? 13 : 14,
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFF172B4D),
+                height: 1.5,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
   Widget _buildLogoSection() {
