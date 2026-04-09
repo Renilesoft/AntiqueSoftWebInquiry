@@ -31,10 +31,7 @@ flutter_ios_podfile_setup
 target 'Runner' do
   use_frameworks! :linkage => :static
 
-  # ← ADD THIS — the umbrella pod was missing, causing Firebase.h not found
   pod 'Firebase', :modular_headers => true
-
-  # Individual Firebase pods
   pod 'FirebaseCore', :modular_headers => true
   pod 'FirebaseCoreInternal', :modular_headers => true
   pod 'FirebaseMessaging', :modular_headers => true
@@ -52,6 +49,7 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
       config.build_settings['ENABLE_BITCODE'] = 'NO'
@@ -59,8 +57,19 @@ post_install do |installer|
         '$(inherited)',
         'PERMISSION_NOTIFICATIONS=1'
       ]
-      # Allows Firebase.h umbrella header imports in modular context
-      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+
+      # ── THE KEY FIX ────────────────────────────────────────────────────────
+      # firebase_messaging 14.7.10 imports Firebase.h (non-modular umbrella
+      # header). When the pod is compiled as a framework MODULE, Xcode errors
+      # with "Include of non-modular header inside framework module".
+      # Setting DEFINES_MODULE = NO stops it being treated as a module at all,
+      # killing the error at its source — no module = no violation.
+      if target.name == 'firebase_messaging'
+        config.build_settings['DEFINES_MODULE'] = 'NO'
+        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+      end
+      # ───────────────────────────────────────────────────────────────────────
+
     end
   end
 end
