@@ -19,7 +19,7 @@ class YearlySalesReportPage extends StatefulWidget {
 class _YearlySalesReportPageState extends State<YearlySalesReportPage>
     with SingleTickerProviderStateMixin {
   final List<String> years = [
-    for (int year = 2010; year <= 2025; year++) year.toString()
+    for (int year = 2010; year <= 2026; year++) year.toString()
   ];
 
   final List<String> months = [
@@ -28,7 +28,7 @@ class _YearlySalesReportPageState extends State<YearlySalesReportPage>
   ];
 
   List<Map<String, dynamic>> salesData = [];
-  String selectedYear = '2025';
+  String selectedYear = '2026';
 
   late AnimationController _controller;
   late Animation<Offset> _slideAnimation;
