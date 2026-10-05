@@ -106,7 +106,7 @@ class DrawerMenu extends StatelessWidget {
     final location = prefs.getString('location') ?? '';
     final username = prefs.getString('username') ?? '';
     
-    // ✅ Get device UUID instead of FCM token
+    // Get device UUID instead of FCM token
     final fcmToken = await FirebaseMessaging.instance.getToken();
     print('📱 Logout with UUID: $fcmToken');
 
@@ -115,7 +115,7 @@ class DrawerMenu extends StatelessWidget {
     final body = jsonEncode({
       "location": location,
       "username": username,
-      "fcmToken": fcmToken,  // ✅ Changed from fcmToken to deviceUUID
+      "fcmToken": fcmToken,  // Changed from fcmToken to deviceUUID
     });
 
     try {
@@ -174,7 +174,7 @@ class DrawerMenu extends StatelessWidget {
       await prefs.setString('rememberedPassword', rememberedPassword);
     }
     
-    // ✅ Preserve device UUID across sessions
+    // Preserve device UUID across sessions
     // Get UUID before clear
     String? deviceUUID = prefs.getString('device_uuid');
     

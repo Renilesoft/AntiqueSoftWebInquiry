@@ -25,9 +25,9 @@ class NotificationChannel {
               AndroidFlutterLocalNotificationsPlugin()
           ?.createNotificationChannel(channel);
 
-      print('✅ Android notification channel created');
+      print('Android notification channel created');
     } catch (e) {
-      print('❌ Error creating notification channel: $e');
+      print('Error creating notification channel: $e');
     }
   }
 }

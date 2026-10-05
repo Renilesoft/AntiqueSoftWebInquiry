@@ -23,12 +23,12 @@ if (localPropertiesFile.exists()) {
     }
 }
 
-def flutterVersionCode = localProperties.getProperty('flutter.versionCode') ?: '19'
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode') ?: '21'
 def flutterVersionName = localProperties.getProperty('flutter.versionName') ?: '2.0'
 
 android {
     namespace "com.esoftsys.antiquesoftwebinquiry"
-    compileSdk 35
+    compileSdk 36
     ndkVersion "26.1.10909125"
 
     compileOptions {
@@ -48,7 +48,7 @@ android {
     defaultConfig {
         applicationId "com.esoftsys.antiquesoftwebinquiry"
         minSdkVersion 23
-        targetSdkVersion 35
+        targetSdkVersion 36
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
     }

@@ -33,7 +33,7 @@ class PayoutReportRepository {
       if (response.statusCode == 200) {
         final jsonBody = jsonDecode(response.body);
 
-        // ✅ If API says "data not found", return empty object
+        // If API says "data not found", return empty object
         if (jsonBody == null || (jsonBody['status'] == 'data not found')) {
           return PayoutReportModel.empty();
         }
@@ -47,5 +47,33 @@ class PayoutReportRepository {
       print("Exception in fetchPayoutSummary: $e");
       return PayoutReportModel.empty();
     }
+  }
+
+  /// NEW: GET Home/auto-deduct-rent/{vendorID}?location={location}
+  Future<bool> fetchAutoDeductRent({
+    required int vendorID,
+    required String location,
+  }) async {
+    final uri = Uri.parse("$baseurl/Home/auto-deduct-rent/$vendorID")
+        .replace(queryParameters: {"location": location});
+
+    final response = await http.get(uri);
+
+    if (response.statusCode != 200) {
+      print("Auto deduct rent error: ${response.body}");
+      throw Exception(
+          "Failed to load auto deduct rent (${response.statusCode})");
+    }
+
+    final decoded = jsonDecode(response.body);
+
+    if (decoded is bool) return decoded;
+    if (decoded is Map) {
+      final v =
+          decoded['result'] ?? decoded['data'] ?? decoded['autoDeductRent'];
+      if (v is bool) return v;
+      return v.toString().toLowerCase() == 'true';
+    }
+    return decoded.toString().toLowerCase() == 'true';
   }
 }

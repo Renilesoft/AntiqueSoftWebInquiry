@@ -49,14 +49,14 @@
     <key>NSLocalNetworkUsageDescription</key>
     <string>This notifies of new Sales for Vendor.</string>
 
-    <!-- 🌐 Network -->
+    <!--  Network -->
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsArbitraryLoads</key>
         <true/>
     </dict>
 
-    <!-- 🔥 Firebase (IMPORTANT) -->
+    <!-- Firebase (IMPORTANT) -->
     <!-- <key>FirebaseAppDelegateProxyEnabled</key>
     <false/> -->
 
@@ -97,7 +97,7 @@
     <key>UIApplicationSupportsIndirectInputEvents</key>
     <true/>
 
-    <!-- ✅ Background Modes -->
+    <!--  Background Modes -->
     <key>UIBackgroundModes</key>
     <array>
         <string>fetch</string>

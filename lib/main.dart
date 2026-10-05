@@ -14,55 +14,41 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 
-// ─────────────────────────────────────────────────────────────
-// GLOBAL: Local notifications plugin instance
-// ─────────────────────────────────────────────────────────────
+
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
-// ─────────────────────────────────────────────────────────────
-// BACKGROUND HANDLER
-// Must be a top-level function (not inside a class)
-// DO NOT call Firebase.initializeApp() here — already initialized
-// ─────────────────────────────────────────────────────────────
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  print("📩 Background message received: ${message.messageId}");
-  print("📩 Title: ${message.notification?.title}");
-  print("📩 Body: ${message.notification?.body}");
+  print("Background message received: ${message.messageId}");
+  print("Title: ${message.notification?.title}");
+  print("Body: ${message.notification?.body}");
 }
 
-// ─────────────────────────────────────────────────────────────
-// MAIN
-// ─────────────────────────────────────────────────────────────
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // STEP 1 — Initialize Firebase ONCE via Dart (AppDelegate does NOT call FirebaseApp.configure())
-  print('🔥 Initializing Firebase...');
+  print('Initializing Firebase...');
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // STEP 2 — Register background handler immediately after Firebase.initializeApp()
-  // This MUST happen before runApp()
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  print('🔔 Background message handler registered');
+  print(' Background message handler registered');
 
-  // STEP 3 — Initialize local notifications
-  print('🔔 Initializing local notifications...');
+  print(' Initializing local notifications...');
   await initializeLocalNotifications();
 
-  // STEP 4 — Request notification permission (iOS requires explicit request)
+
   print('🔐 Requesting notification permissions...');
   await requestNotificationPermission();
 
-  // STEP 5 — Fetch FCM token (with smart APNS handling for cross-platform dev)
-  print('🔥 Fetching FCM token...');
+
+  print(' Fetching FCM token...');
   await getFCMToken();
 
   // STEP 6 — Load app data (unchanged from your original)
-  print('📊 Loading app data...');
+  print(' Loading app data...');
   await Username.loadusername();
   await Vendor.loadVendorId();
   await TotalSales.load();
@@ -72,15 +58,10 @@ Future<void> main() async {
   await MonthlyTotalSales.load();
   await DailyTotalSales.load();
 
-  print('✅ All initialization complete. Running app...');
+  print(' All initialization complete. Running app...');
   runApp(const AntiqueSoftApp());
 }
 
-// ─────────────────────────────────────────────────────────────
-// REQUEST NOTIFICATION PERMISSION
-// iOS requires explicit runtime permission
-// Android 13+ also requires this
-// ─────────────────────────────────────────────────────────────
 Future<void> requestNotificationPermission() async {
   try {
     final NotificationSettings settings =
@@ -96,45 +77,37 @@ Future<void> requestNotificationPermission() async {
 
     switch (settings.authorizationStatus) {
       case AuthorizationStatus.authorized:
-        print('✅ Notification permission: AUTHORIZED');
+        print('Notification permission: AUTHORIZED');
         break;
       case AuthorizationStatus.provisional:
-        print('⚠️ Notification permission: PROVISIONAL (iOS)');
+        print('Notification permission: PROVISIONAL (iOS)');
         break;
       case AuthorizationStatus.denied:
-        print('❌ Notification permission: DENIED');
+        print('Notification permission: DENIED');
         break;
       case AuthorizationStatus.notDetermined:
-        print('⚠️ Notification permission: NOT DETERMINED');
+        print('Notification permission: NOT DETERMINED');
         break;
     }
   } catch (e) {
-    print('❌ Error requesting notification permission: $e');
+    print('Error requesting notification permission: $e');
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// GET FCM TOKEN — FIXED FOR WINDOWS/CODEMAGIC DEVELOPMENT
-// ─────────────────────────────────────────────────────────────
-// KEY CHANGES:
-// 1. Don't block FCM fetch if APNS is null (normal on Windows/simulator)
-// 2. Platform detection: only fetch APNS on iOS platform
-// 3. Don't return early — always attempt FCM token fetch
-// ─────────────────────────────────────────────────────────────
 Future<void> getFCMToken() async {
   try {
     if (Platform.isIOS) {
-      print('🍎 iOS platform detected — attempting APNS token fetch...');
+      print('iOS platform detected — attempting APNS token fetch...');
 
       // Try to get APNs token (takes time on real devices, may be null on simulator)
       String? apnsToken;
       for (int i = 0; i < 5; i++) {
         apnsToken = await FirebaseMessaging.instance.getAPNSToken();
         if (apnsToken != null) {
-          print('✅ APNs token obtained: $apnsToken');
+          print('APNs token obtained: $apnsToken');
           break;
         }
-        print('⏳ APNs token not ready (${i + 1}/5), retrying...');
+        print('APNs token not ready (${i + 1}/5), retrying...');
         await Future.delayed(const Duration(seconds: 1));
       }
 
@@ -152,17 +125,17 @@ Future<void> getFCMToken() async {
       print('   APNS is iOS-only, skipping APNS check.');
     }
 
-    // ✅ IMPORTANT: Always try to get FCM token, regardless of APNS result
-    print('🔄 Fetching FCM token...');
+    // IMPORTANT: Always try to get FCM token, regardless of APNS result
+    print('Fetching FCM token...');
     final String? fcmToken = await FirebaseMessaging.instance.getToken();
 
     if (fcmToken != null) {
-      print('✅ FCM Token successfully obtained: $fcmToken');
+      print('FCM Token successfully obtained: $fcmToken');
       // TODO: Send this token to your backend
       // Example:
       // await _sendTokenToBackend(fcmToken);
     } else {
-      print('❌ FCM token is null (this is unusual)');
+      print('FCM token is null (this is unusual)');
       if (Platform.isIOS) {
         print('   On iOS: Ensure APNs is properly configured');
         print('   On iOS: Try uninstalling and reinstalling the app');
@@ -173,22 +146,18 @@ Future<void> getFCMToken() async {
 
     // Listen for token refresh events (e.g., app reinstall, token rotation)
     FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
-      print('🔄 FCM token refreshed: $newToken');
+      print('FCM token refreshed: $newToken');
       // TODO: Send updated token to your backend
       // await _sendTokenToBackend(newToken);
     });
 
-    print('✅ FCM token setup complete');
+    print('FCM token setup complete');
   } catch (e) {
-    print('❌ FCM token error: $e');
+    print('FCM token error: $e');
     // Don't crash, just log the error
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// INITIALIZE LOCAL NOTIFICATIONS
-// Sets up Android channel + iOS foreground display options
-// ─────────────────────────────────────────────────────────────
 Future<void> initializeLocalNotifications() async {
   try {
     const DarwinInitializationSettings iOSSettings =
@@ -214,7 +183,6 @@ Future<void> initializeLocalNotifications() async {
       onDidReceiveNotificationResponse: onDidReceiveNotificationResponse,
     );
 
-    // Android: Create high importance notification channel
     const AndroidNotificationChannel channel = AndroidNotificationChannel(
       'high_importance_channel',
       'High Importance Notifications',
@@ -229,7 +197,7 @@ Future<void> initializeLocalNotifications() async {
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
 
-    // iOS: Show notifications while app is in foreground
+
     await FirebaseMessaging.instance
         .setForegroundNotificationPresentationOptions(
       alert: true,
@@ -237,26 +205,18 @@ Future<void> initializeLocalNotifications() async {
       sound: true,
     );
 
-    print('✅ Local notifications initialized');
+    print('Local notifications initialized');
   } catch (e) {
-    print('❌ Error initializing local notifications: $e');
+    print('Error initializing local notifications: $e');
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// NOTIFICATION TAP HANDLER
-// ─────────────────────────────────────────────────────────────
+
 void onDidReceiveNotificationResponse(
     NotificationResponse notificationResponse) {
-  print('📱 Notification tapped — payload: ${notificationResponse.payload}');
-  // TODO: Navigate based on payload
-  // Example:
-  // navigatorKey.currentState?.pushNamed('/details', arguments: notificationResponse.payload);
+  print('Notification tapped — payload: ${notificationResponse.payload}');
 }
 
-// ─────────────────────────────────────────────────────────────
-// ROOT APP WIDGET
-// ─────────────────────────────────────────────────────────────
 class AntiqueSoftApp extends StatefulWidget {
   const AntiqueSoftApp({super.key});
 
@@ -272,35 +232,27 @@ class _AntiqueSoftAppState extends State<AntiqueSoftApp> {
     _setupNotificationTapHandler();
   }
 
-  // Foreground: message received while app is open
   void _setupForegroundHandler() {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('📩 Foreground message: ${message.notification?.title}');
-      print('📩 Body: ${message.notification?.body}');
+      print('Foreground message: ${message.notification?.title}');
+      print('Body: ${message.notification?.body}');
 
       if (message.notification != null) {
         _showLocalNotification(message);
       }
 
       if (message.data.isNotEmpty) {
-        print('📦 Data payload: ${message.data}');
+        print('Data payload: ${message.data}');
       }
     });
   }
 
-  // App opened by tapping a notification
   void _setupNotificationTapHandler() {
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print('👆 Notification tapped — title: ${message.notification?.title}');
-      // TODO: Navigate to relevant screen based on message data
-      // Example:
-      // if (message.data.containsKey('screen')) {
-      //   Navigator.pushNamed(context, message.data['screen']);
-      // }
+      print('Notification tapped — title: ${message.notification?.title}');
     });
   }
 
-  // Display local notification for foreground FCM messages
   Future<void> _showLocalNotification(RemoteMessage message) async {
     try {
       const AndroidNotificationDetails androidDetails =
@@ -334,9 +286,9 @@ class _AntiqueSoftAppState extends State<AntiqueSoftApp> {
         payload: message.messageId,
       );
 
-      print('🔊 Local notification shown: ${message.notification?.title}');
+      print('Local notification shown: ${message.notification?.title}');
     } catch (e) {
-      print('❌ Error showing local notification: $e');
+      print('Error showing local notification: $e');
     }
   }
 

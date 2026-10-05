@@ -9,6 +9,9 @@ class PayoutReportViewModel extends ChangeNotifier {
   PayoutReportModel payoutReport = PayoutReportModel.empty();
   String? errorMessage;
 
+  // NEW: null = not loaded or failed
+  bool? autoDeductRent;
+
   Future<void> getPayoutSummary({
     required String location,
     required int vendorID,
@@ -34,5 +37,21 @@ class PayoutReportViewModel extends ChangeNotifier {
       isLoading = false;
       notifyListeners();
     }
+  }
+
+  // NEW
+  Future<void> getAutoDeductRent({
+    required int vendorID,
+    required String location,
+  }) async {
+    try {
+      autoDeductRent = await _repository.fetchAutoDeductRent(
+        vendorID: vendorID,
+        location: location,
+      );
+    } catch (_) {
+      autoDeductRent = null; // UI shows "-"
+    }
+    notifyListeners();
   }
 }

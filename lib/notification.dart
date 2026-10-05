@@ -9,7 +9,7 @@ class NotificationService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
-  /// 🔥 Channel (MUST match Manifest)
+  ///  Channel (MUST match Manifest)
   static const AndroidNotificationChannel _channel =
       AndroidNotificationChannel(
     'high_importance_channel',
@@ -19,11 +19,11 @@ class NotificationService {
 
   /// 🚀 INIT
   static Future<void> init() async {
-    /// ✅ Android Init
+    /// Android Init
     const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    /// ✅ iOS Init
+    /// iOS Init
     const DarwinInitializationSettings iosSettings =
         DarwinInitializationSettings();
 
@@ -35,69 +35,69 @@ class NotificationService {
     await _notificationsPlugin.initialize(
       settings,
       onDidReceiveNotificationResponse: (NotificationResponse response) async {
-        print('📲 Local notification tapped: ${response.payload}');
+        print(' Local notification tapped: ${response.payload}');
         // Handle local notification tap
         _handleNotificationTap(response.payload);
       },
     );
 
-    /// ✅ Create Android Channel (VERY IMPORTANT)
+    /// Create Android Channel (VERY IMPORTANT)
     await _notificationsPlugin
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(_channel);
 
-    /// 🍎 iOS CRITICAL: Enable foreground notifications display
+    /// iOS CRITICAL: Enable foreground notifications display
     if (Platform.isIOS) {
       await _firebaseMessaging.setForegroundNotificationPresentationOptions(
         alert: true,   // Show alert banner
         badge: true,   // Show badge
         sound: true,   // Play sound
       );
-      print('✅ iOS foreground presentation enabled');
+      print('iOS foreground presentation enabled');
     }
 
-    /// 🔔 Foreground Listener - SINGLE SOURCE OF TRUTH
+    /// Foreground Listener - SINGLE SOURCE OF TRUTH
     _setupForegroundHandler();
 
-    /// 📲 Click Listener
+    ///  Click Listener
     _setupNotificationTapHandler();
   }
 
-  /// 🔔 SETUP FOREGROUND HANDLER (Single listener)
+  /// SETUP FOREGROUND HANDLER (Single listener)
   static void _setupForegroundHandler() {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('📩 Foreground message received: ${message.notification?.title}');
+      print('Foreground message received: ${message.notification?.title}');
 
       if (message.notification != null) {
         showNotification(message);
       } else {
-        print('⚠️ No notification content in message');
+        print('No notification content in message');
       }
 
       // Optional: Handle data payload
       if (message.data.isNotEmpty) {
-        print('📦 Data Payload: ${message.data}');
+        print('Data Payload: ${message.data}');
       }
     });
   }
 
-  /// 📲 SETUP TAP HANDLER
+  /// SETUP TAP HANDLER
   static void _setupNotificationTapHandler() {
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print('👆 FCM notification tapped: ${message.notification?.title}');
+      print('FCM notification tapped: ${message.notification?.title}');
       _handleNotificationTap(message.messageId);
     });
   }
 
-  /// 🔔 SHOW NOTIFICATION
+  ///  SHOW NOTIFICATION
   static Future<void> showNotification(RemoteMessage message) async {
     // Extract notification details
     final String title = message.notification?.title ?? "Notification";
     final String body = message.notification?.body ?? "";
     final String? payload = message.messageId;
 
-    print('🔊 Displaying notification: $title');
+    print('Displaying notification: $title');
 
     try {
       if (Platform.isAndroid) {
@@ -106,11 +106,11 @@ class NotificationService {
         await _showIOSNotification(title, body, payload);
       }
     } catch (e) {
-      print('❌ Error showing notification: $e');
+      print('Error showing notification: $e');
     }
   }
 
-  /// 🤖 Android Notification
+  /// Android Notification
   static Future<void> _showAndroidNotification(
     String title,
     String body,
@@ -140,7 +140,7 @@ class NotificationService {
     );
   }
 
-  /// 🍎 iOS Notification
+  ///  iOS Notification
   static Future<void> _showIOSNotification(
     String title,
     String body,
@@ -164,30 +164,30 @@ class NotificationService {
     );
   }
 
-  /// 📲 HANDLE TAP (Navigation Hook)
+  ///  HANDLE TAP (Navigation Hook)
   static void _handleNotificationTap(String? payload) {
-    print('🎯 Handling notification tap with payload: $payload');
+    print(' Handling notification tap with payload: $payload');
     // TODO: Add your navigation logic here
     // Example:
     // navigatorKey.currentState?.pushNamed('/details', arguments: payload);
   }
 
-  /// 🔥 Get FCM Token
+  /// Get FCM Token
   static Future<String?> getToken() async {
     try {
       String? token = await _firebaseMessaging.getToken();
-      print('🔥 FCM Token: $token');
+      print(' FCM Token: $token');
       return token;
     } catch (e) {
-      print('❌ Error getting FCM token: $e');
+      print(' Error getting FCM token: $e');
       return null;
     }
   }
 
-  /// 🔄 Listen to Token Refresh
+  ///  Listen to Token Refresh
   static void listenToTokenRefresh() {
     _firebaseMessaging.onTokenRefresh.listen((fcmToken) {
-      print('🔄 FCM Token Refreshed: $fcmToken');
+      print(' FCM Token Refreshed: $fcmToken');
       // TODO: Send new token to your backend
     });
   }

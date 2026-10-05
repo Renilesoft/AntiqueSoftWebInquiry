@@ -36,9 +36,9 @@ class LocalNotificationService {
         payload: payload,
       );
 
-      print('✅ Local notification shown: $title');
+      print('Local notification shown: $title');
     } catch (e) {
-      print('❌ Error showing notification: $e');
+      print('Error showing notification: $e');
     }
   }
 

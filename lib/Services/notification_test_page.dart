@@ -44,7 +44,7 @@ class _NotificationTestPageState extends State<NotificationTestPage> {
       );
 
       setState(() {
-        statusMessage = '✅ Notification sent successfully!';
+        statusMessage = 'Notification sent successfully!';
       });
 
       // Reset message after 3 seconds
@@ -57,7 +57,7 @@ class _NotificationTestPageState extends State<NotificationTestPage> {
       });
     } catch (e) {
       setState(() {
-        statusMessage = '❌ Error: $e';
+        statusMessage = 'Error: $e';
       });
     }
   }
@@ -66,7 +66,7 @@ class _NotificationTestPageState extends State<NotificationTestPage> {
     try {
       await notificationService.cancelAllNotifications();
       setState(() {
-        statusMessage = '✅ All notifications cancelled!';
+        statusMessage = 'All notifications cancelled!';
       });
 
       Future.delayed(const Duration(seconds: 2), () {
@@ -78,7 +78,7 @@ class _NotificationTestPageState extends State<NotificationTestPage> {
       });
     } catch (e) {
       setState(() {
-        statusMessage = '❌ Error: $e';
+        statusMessage = 'Error: $e';
       });
     }
   }
@@ -210,10 +210,10 @@ class _NotificationTestPageState extends State<NotificationTestPage> {
                 border: Border.all(color: Colors.blue[200]!),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Column(
+              child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     '📋 Testing Instructions:',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
@@ -221,8 +221,8 @@ class _NotificationTestPageState extends State<NotificationTestPage> {
                       color: Color(0xFF172B4D),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
+                  SizedBox(height: 12),
+                  Text(
                     '1. Enter a title and body text\n'
                     '2. Tap "Send Test Notification"\n'
                     '3. Notification should appear immediately\n'
@@ -234,10 +234,10 @@ class _NotificationTestPageState extends State<NotificationTestPage> {
                       height: 1.6,
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    '✅ If notification appears = Success!\n'
-                    '❌ If no notification = Check phone settings',
+                  SizedBox(height: 12),
+                  Text(
+                    ' If notification appears = Success!\n'
+                    ' If no notification = Check phone settings',
                     style: TextStyle(
                       fontSize: 12,
                       fontStyle: FontStyle.italic,

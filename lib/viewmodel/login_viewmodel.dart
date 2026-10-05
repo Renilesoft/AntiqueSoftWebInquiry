@@ -14,7 +14,7 @@ import '../Global/username.dart';
 import '../Global/vendorid.dart';
 import '../view/home_screen/home_screen.dart';
 
-// 🔥 IMPORT NOTIFICATION SERVICE
+//  IMPORT NOTIFICATION SERVICE
 
 
 class LoginViewModel extends ChangeNotifier {
@@ -103,7 +103,7 @@ class LoginViewModel extends ChangeNotifier {
     return String.fromCharCodes(input.runes.map((r) => r ^ xorKey));
   }
 
-  // 🔥 LOGIN WITH FCM TOKEN (FINAL)
+  //  LOGIN WITH FCM TOKEN (FINAL)
   Future<bool> login(BuildContext context) async {
     _setLoading(true);
 
@@ -112,7 +112,7 @@ class LoginViewModel extends ChangeNotifier {
       final username = usernameController.text.trim();
       final password = passwordController.text.trim();
 
-      /// 🔥 STEP 1 — Get FCM Token
+      ///  STEP 1 — Get FCM Token
       String? fcmToken = await FirebaseMessaging.instance.getToken();
 
       /// ⚠️ FALLBACK (VERY IMPORTANT)
@@ -122,7 +122,7 @@ class LoginViewModel extends ChangeNotifier {
         fcmToken = await FirebaseMessaging.instance.getToken();
       }
 
-      print('🔥 Using FCM Token: $fcmToken');
+      print('Using FCM Token: $fcmToken');
 
       final response = await http.post(
         Uri.parse("$baseurl/Home/login"),
@@ -150,21 +150,21 @@ class LoginViewModel extends ChangeNotifier {
           final user = userDataList.first;
           final prefs = await SharedPreferences.getInstance();
 
-          /// ✅ STORE SESSION DATA
+          /// STORE SESSION DATA
           await prefs.setString('username', username);
           await prefs.setString('location', storeCode);
           await prefs.setInt('vendorid', user.vendorID);
           await prefs.setString('userData', jsonEncode(user.toJson()));
           await prefs.setInt('loginTimestamp', DateTime.now().millisecondsSinceEpoch);
 
-          /// 🔥 STORE FCM TOKEN
+          /// STORE FCM TOKEN
           if (fcmToken != null && fcmToken.isNotEmpty) {
             await prefs.setString('fcm_token', fcmToken);
           }
 
           await prefs.setBool('hasLoggedInOnThisDevice', true);
 
-          /// ✅ Remember Me
+          /// Remember Me
           if (_rememberMe) {
             await prefs.setBool('rememberMe', true);
             await _saveCredentials();

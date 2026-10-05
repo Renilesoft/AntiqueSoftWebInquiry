@@ -204,7 +204,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         }
       }
     } catch (e) {
-      debugPrint('❌ [ERROR] YearlyStats: $e');
+      debugPrint('[ERROR] YearlyStats: $e');
       if (mounted) {
         setState(() {
           yearlyStats = {
@@ -270,7 +270,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         }
       }
     } catch (e) {
-      debugPrint('❌ [ERROR] DailySalesStats: $e');
+      debugPrint(' [ERROR] DailySalesStats: $e');
       if (mounted) {
         setState(() {
           dailyStats = {
@@ -314,7 +314,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         }
       }
     } catch (e) {
-      debugPrint('❌ [ERROR] MarketMessage: $e');
+      debugPrint('[ERROR] MarketMessage: $e');
       if (mounted) {
         setState(() {
           marketMessage = 'Error loading message';
@@ -377,7 +377,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         }
       }
     } catch (e) {
-      debugPrint('❌ [ERROR] MonthlySalesStats: $e');
+      debugPrint('[ERROR] MonthlySalesStats: $e');
       if (mounted) {
         setState(() {
           monthlyStats = {
@@ -466,7 +466,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         }
       }
     } catch (e) {
-      debugPrint('❌ [ERROR] YearlySalesData: $e');
+      debugPrint(' [ERROR] YearlySalesData: $e');
       if (mounted) {
         setState(() {
           isLoadingYearlySales = false;
@@ -546,7 +546,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         }
       }
     } catch (e) {
-      debugPrint('❌ [ERROR] DailySalesData: $e');
+      debugPrint(' [ERROR] DailySalesData: $e');
       if (mounted) {
         setState(() {
           isLoadingDailySales = false;
@@ -649,7 +649,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         }
       }
     } catch (e) {
-      debugPrint('❌ [ERROR] MonthlySalesData: $e');
+      debugPrint(' [ERROR] MonthlySalesData: $e');
       if (mounted) {
         setState(() {
           isLoadingMonthlySales = false;
@@ -697,7 +697,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         }
       }
     } catch (e) {
-      debugPrint('❌ [ERROR] VendorName: $e');
+      debugPrint(' [ERROR] VendorName: $e');
       if (mounted) {
         setState(() {
           vendorName = 'User';

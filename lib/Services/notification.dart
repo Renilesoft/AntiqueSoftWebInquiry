@@ -43,9 +43,9 @@ class NotificationService {
         await _requestiOSPermissions();
       }
 
-      print('✅ Notifications initialized');
+      print('Notifications initialized');
     } catch (e) {
-      print('❌ Init error: $e');
+      print('Init error: $e');
     }
   }
 
@@ -63,9 +63,9 @@ class NotificationService {
               AndroidFlutterLocalNotificationsPlugin>();
 
       await androidPlugin?.createNotificationChannel(channel);
-      print('✅ Android channel created');
+      print('Android channel created');
     } catch (e) {
-      print('❌ Android channel error: $e');
+      print('Android channel error: $e');
     }
   }
 
@@ -81,10 +81,10 @@ class NotificationService {
           badge: true,
           sound: true,
         );
-        print('✅ iOS permissions: $result');
+        print('iOS permissions: $result');
       }
     } catch (e) {
-      print('❌ iOS permissions error: $e');
+      print('iOS permissions error: $e');
     }
   }
 
@@ -129,9 +129,9 @@ class NotificationService {
         payload: payload,
       );
 
-      print('✅ Notification sent: $title');
+      print('Notification sent: $title');
     } catch (e) {
-      print('❌ Show notification error: $e');
+      print('Show notification error: $e');
     }
   }
 

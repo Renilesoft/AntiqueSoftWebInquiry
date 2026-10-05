@@ -32,12 +32,19 @@ class PayoutReportView extends StatefulWidget {
 
 class _PayoutReportViewState extends State<PayoutReportView> {
   final currencyFormat = NumberFormat.currency(symbol: "\$", decimalDigits: 2);
-  bool _firstOpen = true; // ✅ Track first page open
+  bool _firstOpen = true; // Track first page open
 
+  // CHANGED: load Auto Deduct Rent when the screen opens
   @override
   void initState() {
     super.initState();
-    // Do not auto-load anything yet, wait for user to pick a month
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<PayoutReportViewModel>().getAutoDeductRent(
+            vendorID: Vendor.vendorid!,
+            location: Location.location,
+          );
+    });
   }
 
   @override
@@ -72,7 +79,7 @@ class _PayoutReportViewState extends State<PayoutReportView> {
             child: DateRangePickerWidget(
               onDateRangeSelected: (DateTimeRange range) {
                 setState(() {
-                  _firstOpen = false; // ✅ Hide message after first search
+                  _firstOpen = false; // Hide message after first search
                 });
                 vm.getPayoutSummary(
                   location: Location.location,
@@ -116,7 +123,8 @@ class _PayoutReportViewState extends State<PayoutReportView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildMarketPayableCard(data),
+                        // CHANGED: pass the API value
+                        _buildMarketPayableCard(data, vm.autoDeductRent),
                         const SizedBox(height: 20),
                         _buildMarketReceivableCard(data),
                       ],
@@ -133,7 +141,8 @@ class _PayoutReportViewState extends State<PayoutReportView> {
   }
 
   /// --- Market Payable Card ---
-  Widget _buildMarketPayableCard(PayoutReportModel data) {
+  // CHANGED: new `autoDeduct` parameter
+  Widget _buildMarketPayableCard(PayoutReportModel data, bool? autoDeduct) {
     return Card(
       elevation: 0,
       color: Colors.white,
@@ -143,10 +152,11 @@ class _PayoutReportViewState extends State<PayoutReportView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            // CHANGED: no longer const; shows Yes / No from the API
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
+                const Text(
                   'Market Payable',
                   style: TextStyle(
                     fontFamily: 'DM Sans',
@@ -157,7 +167,7 @@ class _PayoutReportViewState extends State<PayoutReportView> {
                 ),
                 Row(
                   children: [
-                    Text(
+                    const Text(
                       'Auto Deduct Rent : ',
                       style: TextStyle(
                         fontFamily: 'DM Sans',
@@ -166,12 +176,14 @@ class _PayoutReportViewState extends State<PayoutReportView> {
                       ),
                     ),
                     Text(
-                      'YES',
+                      autoDeduct == null ? '-' : (autoDeduct ? 'Yes' : 'No'),
                       style: TextStyle(
                         fontFamily: 'DM Sans',
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF00CF9D),
+                        color: autoDeduct == true
+                            ? const Color(0xFF00CF9D)
+                            : Colors.redAccent,
                       ),
                     ),
                   ],
